@@ -111,6 +111,65 @@ __global__ void groups_kernel(const double* candidates, const std::int64_t* offs
     counts[group] = live;
 }
 
+__global__ void coop_kernel(const double* candidates, const std::int64_t* offsets,
+                            Cluster* clusters, double* output, std::int64_t* counts,
+                            int* error, std::size_t sources, double weight_sum, double iou_thr) {
+    const auto group = static_cast<std::size_t>(blockIdx.x);
+    const unsigned lane = threadIdx.x;
+    const auto start = offsets[group];
+    __shared__ double best_ious[128];
+    __shared__ std::int64_t best_indices[128];
+    __shared__ std::int64_t live;
+    __shared__ int failed;
+    if (lane == 0) { live = 0; failed = 0; }
+    __syncthreads();
+    for (auto index = start; index < offsets[group + 1]; ++index) {
+        const double* candidate = candidates + index * 5;
+        double local_iou = iou_thr;
+        std::int64_t local_index = INT64_MAX;
+        for (std::int64_t slot = lane; slot < live; slot += 128) {
+            const double overlap = matching_iou(clusters[start + slot].representative, candidate);
+            if (overlap > local_iou) { local_iou = overlap; local_index = slot; }
+        }
+        best_ious[lane] = local_iou;
+        best_indices[lane] = local_index;
+        __syncthreads();
+        for (unsigned stride = 64; stride > 0; stride /= 2) {
+            if (lane < stride) {
+                const double other_iou = best_ious[lane + stride];
+                const auto other_index = best_indices[lane + stride];
+                if (other_iou > best_ious[lane] ||
+                    (other_iou == best_ious[lane] && other_index < best_indices[lane])) {
+                    best_ious[lane] = other_iou;
+                    best_indices[lane] = other_index;
+                }
+            }
+            __syncthreads();
+        }
+        if (lane == 0) {
+            auto best = best_indices[0];
+            if (best == INT64_MAX) {
+                best = live++;
+                clusters[start + best] = Cluster{};
+            }
+            if (!append_cluster(clusters[start + best], candidate)) {
+                failed = 1;
+                atomicExch(error, 1);
+            }
+        }
+        // Representatives and reduction scratch are ready for the next candidate.
+        __syncthreads();
+        if (failed) { return; }  // Uniform exit after the block-wide barrier.
+    }
+    for (std::int64_t slot = lane; slot < live; slot += 128) {
+        const auto& cluster = clusters[start + slot];
+        double* row = output + (start + slot) * 5;
+        row[0] = scaled_score(cluster, sources, weight_sum);
+        for (unsigned axis = 1; axis < 5; ++axis) { row[axis] = cluster.representative[axis]; }
+    }
+    if (lane == 0) { counts[group] = live; }
+}
+
 }  // namespace
 
 struct CudaWorkspace::Impl {
@@ -172,21 +231,29 @@ struct CudaWorkspace::Impl {
 
     void launch(const std::string& backend) {
         if (!uploaded) { throw std::runtime_error("Upload candidates before launching a CUDA kernel"); }
-        if (backend != "cuda_groups") { throw std::invalid_argument("Unknown or unavailable CUDA backend: " + backend); }
+        if (backend != "cuda_groups" && backend != "cuda_coop") {
+            throw std::invalid_argument("Unknown or unavailable CUDA backend: " + backend);
+        }
         DeviceGuard guard(device);
         launched = false;
         if (groups) {
-            const auto blocks = (groups + 127) / 128;
+            const auto blocks = backend == "cuda_groups" ? (groups + 127) / 128 : groups;
             if (blocks > static_cast<std::size_t>(max_grid_x)) {
                 throw std::overflow_error("Group count exceeds the CUDA launch grid limit");
             }
             check_cuda(cudaMemsetAsync(error.data, 0, sizeof(int), stream), "reset arithmetic status");
             check_cuda(cudaMemsetAsync(counts.data, 0, bytes_for(groups, sizeof(std::int64_t)), stream), "reset cluster counts");
             check_cuda(cudaMemsetAsync(output.data, 0, bytes_for(bytes_for(count, 5), sizeof(double)), stream), "clear padded output");
-            groups_kernel<<<static_cast<unsigned>(blocks), 128, 0, stream>>>(
-                candidates.data, offsets.data, groups, clusters.data, output.data, counts.data, error.data,
-                sources, weight_sum, iou_thr);
-            check_cuda(cudaGetLastError(), "launch cuda_groups");
+            if (backend == "cuda_groups") {
+                groups_kernel<<<static_cast<unsigned>(blocks), 128, 0, stream>>>(
+                    candidates.data, offsets.data, groups, clusters.data, output.data, counts.data, error.data,
+                    sources, weight_sum, iou_thr);
+            } else {
+                coop_kernel<<<static_cast<unsigned>(blocks), 128, 0, stream>>>(
+                    candidates.data, offsets.data, clusters.data, output.data, counts.data, error.data,
+                    sources, weight_sum, iou_thr);
+            }
+            check_cuda(cudaGetLastError(), "launch fusion kernel");
             ++kernel_launches;
         }
         launched = true;

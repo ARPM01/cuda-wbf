@@ -111,6 +111,7 @@ PYBIND11_MODULE(_native, module) {
         std::vector<std::string> backends{"cpp"};
 #ifdef WBF_HAS_CUDA
         backends.push_back("cuda_groups");
+        backends.push_back("cuda_coop");
 #endif
         return backends;
     });
