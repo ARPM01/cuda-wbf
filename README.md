@@ -86,4 +86,20 @@ Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per
 
 Start with the [implementation plan](IMPLEMENTATION_PLAN.md). It defines the reference behavior, the two CUDA kernels, the SHARC bring-up sequence, and the COCO benchmark protocol. The plan includes a CPU-only build for development on machines without CUDA.
 
-The repository currently contains the plan. The implementation and benchmark runner are pending.
+The first implementation milestone provides a CPU-only C++17 extension. CUDA backends and the performance runner are pending.
+
+Use Python 3.11 in an isolated environment. Install the pinned runtime and development dependencies:
+
+```bash
+python -m pip install 'ensemble-boxes==1.0.9' 'numpy==2.2.6' 'numba==0.61.2' \
+  'pybind11==2.13.6' 'pytest==8.3.5'
+cmake -S . -B build/cpu -DCMAKE_BUILD_TYPE=Release -DWBF_ENABLE_CUDA=OFF \
+  -DPython_EXECUTABLE="$(command -v python)" \
+  -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+cmake --build build/cpu --parallel
+cmake --install build/cpu --prefix "$PWD/build/cpu/stage"
+export PYTHONPATH="$PWD/build/cpu/stage"
+python -m pytest
+```
+
+CMake installs the Python package and extension together directly under the supplied prefix. A wheel can also be built and installed with `python -m pip install '.[dev]'`; CUDA is disabled by default.

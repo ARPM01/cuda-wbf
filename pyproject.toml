@@ -1,0 +1,26 @@
+[build-system]
+requires = ["scikit-build-core==0.11.6", "pybind11==2.13.6"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "cuda-wbf"
+version = "0.1.0"
+description = "Reference-compatible native Weighted Boxes Fusion"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "ensemble-boxes==1.0.9",
+  "numpy==2.2.6",
+  "numba==0.61.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.3.5", "pybind11==2.13.6", "scikit-build-core==0.11.6"]
+
+[tool.scikit-build]
+cmake.version = ">=3.24"
+wheel.packages = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
