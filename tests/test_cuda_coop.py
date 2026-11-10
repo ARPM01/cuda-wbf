@@ -7,7 +7,7 @@ from cuda_wbf import _native
 from cuda_wbf.verification import check_case, fixture_cases, randomized_cases
 
 pytestmark = [pytest.mark.cuda, pytest.mark.skipif(
-    os.getenv("WBF_TEST_CUDA") != "1", reason="set WBF_TEST_CUDA=1 in a GPU allocation")]
+    os.getenv("WBF_TEST_CUDA") != "1", reason="set WBF_TEST_CUDA=1 with one GPU selected")]
 
 
 @pytest.mark.parametrize("case", fixture_cases() + list(randomized_cases()), ids=lambda case: case.name)

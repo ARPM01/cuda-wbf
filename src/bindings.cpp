@@ -116,6 +116,16 @@ PYBIND11_MODULE(_native, module) {
         return backends;
     });
 #ifdef WBF_HAS_CUDA
+    module.def("cuda_device_info", [] {
+        const auto info = wbf::cuda_device_info();
+        py::dict result;
+        result["name"] = info.name;
+        result["device"] = info.device;
+        result["compute_capability"] = py::make_tuple(info.major, info.minor);
+        result["runtime_version"] = info.runtime_version;
+        result["driver_api_version"] = info.driver_version;
+        return result;
+    });
     py::class_<wbf::CudaWorkspace>(module, "CudaWorkspace")
         .def(py::init<>())
         .def("upload", [](wbf::CudaWorkspace& workspace, const Rows& candidates, const Offsets& offsets,

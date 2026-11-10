@@ -1,10 +1,10 @@
-"""CPU verification entry point; performance commands follow in milestone 3."""
+"""CPU/GPU fixture verification; data and performance commands follow later."""
 
 import argparse
 import json
 import sys
 
-from .verification import verify_cpu
+from .verification import verify_cpu, verify_cuda
 
 
 def main(argv=None):
@@ -12,13 +12,15 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     verify = commands.add_parser("verify", help="check native fusion against the pinned Python oracle")
     verify.add_argument("--cpu-only", action="store_true", help="run CPU fixtures without COCO assets or CUDA")
+    verify.add_argument("--fixtures-only", action="store_true", help="run named fixtures without randomized cases")
     args = parser.parse_args(argv)
-    if not args.cpu_only:
-        parser.error("this milestone supports fixture verification only; pass verify --cpu-only")
     try:
-        report = verify_cpu()
+        if args.cpu_only:
+            report = verify_cpu(True) if args.fixtures_only else verify_cpu()
+        else:
+            report = verify_cuda(fixtures_only=args.fixtures_only)
     except (AssertionError, ValueError, RuntimeError) as error:
-        print(f"CPU verification failed: {error}", file=sys.stderr)
+        print(f"Verification failed: {error}", file=sys.stderr)
         return 1
     print(json.dumps(report, indent=2))
     return 0

@@ -307,6 +307,19 @@ struct CudaWorkspace::Impl {
 CudaWorkspace::CudaWorkspace() : impl_(std::make_unique<Impl>()) {}
 CudaWorkspace::~CudaWorkspace() = default;
 
+DeviceInfo cuda_device_info() {
+    DeviceInfo info{};
+    check_cuda(cudaGetDevice(&info.device), "get current device");
+    cudaDeviceProp properties{};
+    check_cuda(cudaGetDeviceProperties(&properties, info.device), "query device properties");
+    info.name = properties.name;
+    info.major = properties.major;
+    info.minor = properties.minor;
+    check_cuda(cudaRuntimeGetVersion(&info.runtime_version), "query runtime version");
+    check_cuda(cudaDriverGetVersion(&info.driver_version), "query driver API version");
+    return info;
+}
+
 void CudaWorkspace::upload(const double* candidates, std::size_t count, const std::int64_t* offsets,
                            std::size_t groups, std::size_t sources, double weight_sum, double iou_thr) {
     std::lock_guard<std::mutex> lock(impl_->mutex);
