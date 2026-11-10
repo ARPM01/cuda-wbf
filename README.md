@@ -2,6 +2,8 @@
 
 A research project to implement Weighted Boxes Fusion (WBF) for object detection in CUDA and measure when it reduces postprocessing latency versus the Python reference.
 
+**Stretch goal:** Package the implementation as an importable Python module (`import cuda_wbf`) so it can be reused in other Python projects.
+
 ## Delivery status
 
 Implementation is organized into four milestones, each delivered as a stack of focused pull requests. The first PR in a milestone targets `main`; each subsequent PR targets the preceding branch. Review and merge each stack from the bottom up.
