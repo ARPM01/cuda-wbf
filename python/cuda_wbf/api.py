@@ -1,9 +1,18 @@
 """Validated public API and reference-compatible host preprocessing."""
 
 import numpy as np
+import threading
 from ensemble_boxes.ensemble_boxes_wbf import prefilter_boxes
 
 from . import _native
+
+_workspaces = threading.local()
+
+
+def _cuda_workspace():
+    if not hasattr(_workspaces, "cuda"):
+        _workspaces.cuda = _native.CudaWorkspace()
+    return _workspaces.cuda
 
 
 def _empty():
@@ -81,8 +90,8 @@ def fuse(images, weights, *, backend, iou_thr=0.7, skip_box_thr=0.001):
     """
     if backend not in ("cpp", "cuda_groups", "cuda_coop"):
         raise ValueError("backend must be 'cpp', 'cuda_groups', or 'cuda_coop'")
-    if backend != "cpp":
-        raise RuntimeError(f"{backend} is unavailable in this CPU build. Use backend='cpp'; CUDA backends are pending milestone 2.")
+    if backend not in _native.available_backends():
+        raise RuntimeError(f"{backend} is unavailable in this build. Use backend='cpp' or install a CUDA build with this backend enabled.")
     images, weights, weight_sum, iou_thr, skip_box_thr = _validate(images, weights, iou_thr, skip_box_thr)
     # Flatten the nonempty (image, class) groups into one array for C++.
     # Each pair of offsets delimits a slice of candidate rows. For example,
@@ -107,9 +116,11 @@ def fuse(images, weights, *, backend, iou_thr=0.7, skip_box_thr=0.001):
     if not packed:
         return [_empty() for _ in images]
     candidates = np.ascontiguousarray(np.concatenate(packed), dtype=np.float64)
-    values, output_offsets = _native.fuse_groups(
-        candidates, np.asarray(offsets, np.int64), len(weights), weight_sum, iou_thr
-    )
+    slices = np.asarray(offsets, np.int64)
+    if backend == "cpp":
+        values, output_offsets = _native.fuse_groups(candidates, slices, len(weights), weight_sum, iou_thr)
+    else:
+        values, output_offsets = _cuda_workspace().fuse(candidates, slices, len(weights), weight_sum, iou_thr, backend)
     # A group can return fewer rows after fusion. The new offsets tell us how
     # many times to repeat its class label and where each image's output ends.
     labels = np.repeat(np.asarray(group_labels, np.int64), np.diff(output_offsets))
