@@ -100,6 +100,7 @@ cmake --build build/cpu --parallel
 cmake --install build/cpu --prefix "$PWD/build/cpu/stage"
 export PYTHONPATH="$PWD/build/cpu/stage"
 python -m pytest
+python -m cuda_wbf.bench verify --cpu-only
 ```
 
 CMake installs the Python package and extension together directly under the supplied prefix. A wheel can also be built and installed with `python -m pip install '.[dev]'`; CUDA is disabled by default.
@@ -107,3 +108,7 @@ CMake installs the Python package and extension together directly under the supp
 Call `cuda_wbf.fuse(images, weights, backend="cpp", iou_thr=0.7, skip_box_thr=0.001)` with one list of sources per image. Each source is a `(boxes, scores, labels)` tuple: normalized `(N, 4)` xyxy boxes, `(N,)` scores in `(0, 1]`, and `(N,)` integer labels. Keep every configured source slot, using correctly shaped empty arrays when necessary. The result contains one score-ordered tuple per image. Boxes and scores are float64; labels are int64.
 
 Inputs must be finite, coordinates must be in `[0, 1]` with positive box area, and source weights must be positive with a finite sum. Weights are canonicalized to float64; input score precision is preserved for the reference prefilter's threshold comparison. The API rejects invalid data before calling the upstream prefilter. Class grouping and both score sorts reuse the pinned reference behavior. The native loop preserves singleton precision and rounds merged coordinates and scores as the reference does. Requests for `cuda_groups` or `cuda_coop` currently raise an actionable error.
+
+`verify --cpu-only` requires no COCO data or GPU. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, and the installed CLI. The full data loader, CUDA verification, `preflight`, and performance `run` commands remain later milestones.
+
+See [CPU validation results](docs/CPU_VALIDATION.md) for the tests run on the development machine and sanitizer reproduction commands.

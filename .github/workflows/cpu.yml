@@ -1,0 +1,33 @@
+name: CPU correctness
+
+on:
+  push:
+    branches: [main, 'stack/cpu-*']
+  pull_request:
+
+jobs:
+  cpu:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned environment
+        run: python -m pip install '.[dev]'
+      - name: Verify installed wheel
+        run: python -m cuda_wbf.bench verify --cpu-only
+      - name: Test installed package
+        run: python -m pytest -q
+      - name: Verify CMake prefix installation
+        shell: bash
+        run: |
+          cmake -S . -B build/cpu -DCMAKE_BUILD_TYPE=Release -DWBF_ENABLE_CUDA=OFF \
+            -DPython_EXECUTABLE="$(command -v python)" \
+            -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+          cmake --build build/cpu --parallel 4
+          cmake --install build/cpu --prefix "$PWD/build/cpu/stage"
+          PYTHONPATH="$PWD/build/cpu/stage" python -m cuda_wbf.bench verify --cpu-only
