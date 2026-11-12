@@ -10,6 +10,8 @@ def test_scalar_matches_oracle():
         (np.array([[0.2, 0.2, 0.6, 0.6]]), np.array([0.9]), np.array([1])),
         (np.array([[0.25, 0.25, 0.65, 0.65]]), np.array([0.6]), np.array([1])),
     ]
+    # Both boxes share a label and overlap enough to merge at this threshold.
+    # The higher-confidence box pulls the fused coordinates closer to itself.
     actual = fuse([image], [1, 1], backend="cpp", iou_thr=0.55)[0]
     expected = weighted_boxes_fusion(*zip(*image), weights=[1, 1], iou_thr=0.55, skip_box_thr=0.001)
     for result, reference in zip(actual, expected):
@@ -23,6 +25,8 @@ def test_empty_batch():
 
 def test_float32_score_floor_uses_upstream_comparison():
     image = [(np.array([[0, 0, 1, 1]], np.float32), np.array([0.5], np.float32), np.array([1]))]
+    # This cutoff is slightly above 0.5 in float64. Check that passing the
+    # original float32 score through prefiltering matches the reference.
     floor = 0.5000000001
     expected = weighted_boxes_fusion(*zip(*image), weights=[1.0], skip_box_thr=floor)
     actual = fuse([image], [1.0], backend="cpp", skip_box_thr=floor)[0]

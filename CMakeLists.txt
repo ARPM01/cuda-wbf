@@ -13,11 +13,15 @@ if(NOT Python_VERSION VERSION_LESS 3.12)
 endif()
 find_package(pybind11 2.13 CONFIG REQUIRED)
 
+# Build the fusion algorithm as a static library so its compiled code can be
+# linked into the _native extension that Python imports.
 add_library(wbf_core STATIC src/scalar.cpp)
 set_target_properties(wbf_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(wbf_core PUBLIC src)
 pybind11_add_module(_native MODULE NO_EXTRAS src/bindings.cpp)
 target_link_libraries(_native PRIVATE wbf_core)
+# Apply the same floating-point settings to both targets. Compiler shortcuts
+# such as fusing multiplication and addition can change when values round.
 foreach(target wbf_core _native)
   target_compile_features(${target} PRIVATE cxx_std_17)
   set_target_properties(${target} PROPERTIES CXX_EXTENSIONS OFF)

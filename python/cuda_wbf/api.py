@@ -27,6 +27,9 @@ def _threshold(value, name):
 
 
 def _validate(images, weights, iou_thr, skip_box_thr):
+    # Each weight belongs to a source slot, so all images use the same source order.
+    # Keep the full weight sum for the final confidence calculation, even when
+    # some sources have no detections for a particular image.
     weights = np.asarray(_real_array(weights, "weights"), dtype=np.float64)
     if weights.ndim != 1 or weights.size == 0 or not (weights > 0).all():
         raise ValueError("weights must be a nonempty 1D array of positive source weights")
@@ -60,6 +63,8 @@ def _validate(images, weights, iou_thr, skip_box_thr):
                 raise ValueError(f"{context} boxes must have positive area and ordered xyxy coordinates")
             if not ((scores > 0) & (scores <= 1)).all():
                 raise ValueError(f"{context} scores must be in (0, 1]")
+            # Preserve the input score dtype until prefiltering. Converting a
+            # float32 score to float64 here could change a near-threshold decision.
             sources.append((boxes, scores, labels.astype(np.int64, copy=False)))
         validated.append(sources)
     return validated, weights, weight_sum, iou_thr, skip_box_thr
@@ -79,15 +84,22 @@ def fuse(images, weights, *, backend, iou_thr=0.7, skip_box_thr=0.001):
     if backend != "cpp":
         raise RuntimeError(f"{backend} is unavailable in this CPU build. Use backend='cpp'; CUDA backends are pending milestone 2.")
     images, weights, weight_sum, iou_thr, skip_box_thr = _validate(images, weights, iou_thr, skip_box_thr)
+    # Flatten the nonempty (image, class) groups into one array for C++.
+    # Each pair of offsets delimits a slice of candidate rows. For example,
+    # [0, 2, 5] describes two groups, with rows [0:2] and [2:5].
     packed = []
     offsets = [0]
+    # Python keeps the class label for each group and the range of groups for
+    # each image. The same label in two images belongs to two different groups.
     group_labels = []
     image_groups = [0]
     for image in images:
         boxes, scores, labels = zip(*image)
         groups = prefilter_boxes(boxes, scores, labels, weights, skip_box_thr)
         for label, candidates in groups.items():
-            # Upstream preserves first-seen class order and NumPy's score ties.
+            # The prefilter applies the score cutoff, multiplies scores by source
+            # weights, and sorts each class by weighted score. Keep its ordering
+            # for ties. Pass only [weighted_score, x1, y1, x2, y2] to C++.
             packed.append(candidates[:, [1, 4, 5, 6, 7]])
             offsets.append(offsets[-1] + len(candidates))
             group_labels.append(label)
@@ -98,11 +110,14 @@ def fuse(images, weights, *, backend, iou_thr=0.7, skip_box_thr=0.001):
     values, output_offsets = _native.fuse_groups(
         candidates, np.asarray(offsets, np.int64), len(weights), weight_sum, iou_thr
     )
+    # A group can return fewer rows after fusion. The new offsets tell us how
+    # many times to repeat its class label and where each image's output ends.
     labels = np.repeat(np.asarray(group_labels, np.int64), np.diff(output_offsets))
     results = []
     for first, last in zip(image_groups[:-1], image_groups[1:]):
         start, end = output_offsets[first], output_offsets[last]
-        # The final sort sees clusters in class and cluster creation order.
+        # Before the final score sort, rows are in class order, then cluster
+        # creation order. Starting from that order matches the reference on ties.
         order = values[start:end, 0].argsort()[::-1]
         rows = values[start:end][order]
         results.append((rows[:, 1:].copy(), rows[:, 0].copy(), labels[start:end][order]))

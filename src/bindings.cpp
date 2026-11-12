@@ -9,6 +9,8 @@
 namespace py = pybind11;
 
 namespace {
+// These aliases describe NumPy arrays whose values are laid out contiguously
+// in memory. A candidate row occupies five consecutive float64 values.
 using Rows = py::array_t<double, py::array::c_style>;
 using Offsets = py::array_t<std::int64_t, py::array::c_style>;
 
@@ -17,6 +19,8 @@ py::tuple fuse_groups(const Rows& candidates, const Offsets& offsets,
     if (candidates.ndim() != 2 || candidates.shape(1) != 5) {
         throw py::value_error("candidates must have shape (N, 5)");
     }
+    // Offsets are row indices. Validate the boundaries before the core uses
+    // them to access the NumPy buffer. Strict increases ensure nonempty groups.
     if (offsets.ndim() != 1 || offsets.size() < 1 || offsets.data()[0] != 0 ||
         offsets.data()[offsets.size() - 1] != candidates.shape(0)) {
         throw py::value_error("offsets must start at zero and end at the candidate count");
@@ -43,6 +47,9 @@ py::tuple fuse_groups(const Rows& candidates, const Offsets& offsets,
     }
     wbf::Result result;
     {
+        // Release the Global Interpreter Lock so other Python threads can run
+        // during the C++ calculation. Leaving this block reacquires the lock
+        // before we allocate and fill the output NumPy arrays.
         py::gil_scoped_release release;
         result = wbf::fuse_groups(candidates.data(), static_cast<std::size_t>(candidates.shape(0)),
                                   offsets.data(), static_cast<std::size_t>(offsets.size() - 1),
@@ -51,6 +58,8 @@ py::tuple fuse_groups(const Rows& candidates, const Offsets& offsets,
     if (result.rows.size() > static_cast<std::size_t>(std::numeric_limits<py::ssize_t>::max() / 5)) {
         throw std::overflow_error("fusion result is too large for a NumPy array");
     }
+    // The core returns C++ vectors. Copy them into NumPy arrays that own
+    // their memory so the returned data remains valid after this call ends.
     Rows values({static_cast<py::ssize_t>(result.rows.size()), py::ssize_t{5}});
     auto output = values.mutable_unchecked<2>();
     for (std::size_t i = 0; i < result.rows.size(); ++i) {
@@ -75,6 +84,8 @@ PYBIND11_MODULE(_native, module) {
         info["cuda_enabled"] = false;
         return info;
     });
+    // Register the wrapper as _native.fuse_groups. noconvert() requires callers
+    // to supply arrays with the expected dtype and layout at the boundary.
     module.def("fuse_groups", &fuse_groups, py::arg("candidates").noconvert(),
                py::arg("offsets").noconvert(), py::arg("sources"),
                py::arg("weight_sum"), py::arg("iou_thr"));
