@@ -88,11 +88,18 @@ Start with the [implementation plan](IMPLEMENTATION_PLAN.md). It defines the ref
 
 The first implementation milestone provides a CPU-only C++17 fusion backend. CUDA backends and the performance runner are pending.
 
-Use Python 3.11 in an isolated environment. Install the pinned runtime and development dependencies:
+Install conda (Miniconda or Miniforge) and a C++17 compiler such as GCC or Clang. From the repository root, create and activate the Python 3.11 environment:
 
 ```bash
-python -m pip install 'ensemble-boxes==1.0.9' 'numpy==2.2.6' 'numba==0.61.2' \
-  'pybind11==2.13.6' 'pytest==8.3.5'
+conda env create --file environment.yml
+conda activate cuda-wbf
+```
+
+[environment.yml](environment.yml) installs CMake 3.24+, Ninja, and the pinned runtime and development dependencies from `pyproject.toml`. It does not install the project itself. Run `conda activate cuda-wbf` in each new shell before building or testing, and use `conda deactivate` when finished.
+
+Build and test the CPU backend in the activated environment:
+
+```bash
 cmake -S . -B build/cpu -DCMAKE_BUILD_TYPE=Release -DWBF_ENABLE_CUDA=OFF \
   -DPython_EXECUTABLE="$(command -v python)" \
   -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
@@ -100,10 +107,24 @@ cmake --build build/cpu --parallel
 cmake --install build/cpu --prefix "$PWD/build/cpu/stage"
 export PYTHONPATH="$PWD/build/cpu/stage"
 python -m pytest
+python -m cuda_wbf.bench verify --cpu-only
 ```
 
-CMake installs the Python package and extension together directly under the supplied prefix. A wheel can also be built and installed with `python -m pip install '.[dev]'`; CUDA is disabled by default.
+CMake installs the Python package and extension together directly under the supplied prefix. As an alternative, build and install a wheel in the activated environment:
+
+```bash
+unset PYTHONPATH
+python -m pip install '.[dev]'
+python -m pytest
+python -m cuda_wbf.bench verify --cpu-only
+```
+
+Unsetting `PYTHONPATH` ensures these commands use the installed wheel rather than a previous CMake staging directory. CUDA is disabled by default for both installation methods. If an existing CMake build was configured with another Python environment, use a fresh build directory so CMake discovers the conda interpreter.
 
 Call `cuda_wbf.fuse(images, weights, backend="cpp", iou_thr=0.7, skip_box_thr=0.001)` with one list of sources per image. Each source is a `(boxes, scores, labels)` tuple: normalized `(N, 4)` xyxy boxes, `(N,)` scores in `(0, 1]`, and `(N,)` integer labels. Keep every configured source slot, using correctly shaped empty arrays when necessary. The result contains one score-ordered tuple per image. Boxes and scores are float64; labels are int64.
 
 Inputs must be finite, coordinates must be in `[0, 1]` with positive box area, and source weights must be positive with a finite sum. Weights are canonicalized to float64; input score precision is preserved for the reference prefilter's threshold comparison. The API rejects invalid data before calling the upstream prefilter. Class grouping and both score sorts reuse the pinned reference behavior. The native loop preserves singleton precision and rounds merged coordinates and scores as the reference does. Requests for `cuda_groups` or `cuda_coop` currently raise an actionable error.
+
+`verify --cpu-only` requires no COCO data or GPU. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, and the installed CLI. The full data loader, CUDA verification, `preflight`, and performance `run` commands remain later milestones.
+
+See [CPU validation results](docs/CPU_VALIDATION.md) for the tests run on the development machine and sanitizer reproduction commands.

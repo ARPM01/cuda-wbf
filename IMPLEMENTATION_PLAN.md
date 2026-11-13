@@ -42,10 +42,11 @@ Use a shared flat layout and reusable CUDA workspace with input slices, up to on
 
 ## 4. Bring up on SHARC and apply acceptance gates
 
-Implement the runner as `python -m cuda_wbf.bench` with `preflight`, `verify`, and `run` subcommands. Use the planned invocation below inside a one-GPU allocation. Discover SHARC's scheduler, partition, and module settings from the site before running. Stage the Python wheels and data on a host with network access if compute nodes are offline. Select a compatible TorchVision CUDA build for the detected driver. Keep the run commands independent of the scheduler.
+Implement the runner as `python -m cuda_wbf.bench` with `preflight`, `verify`, and `run` subcommands. Use the planned invocation below inside a one-GPU allocation. First create the `cuda-wbf` conda environment from `environment.yml` as described in [README.md](README.md#technical-reference). This environment supplies Python and the CPU build dependencies; the CUDA Toolkit, driver, and future benchmark dependencies require separate setup. Discover SHARC's scheduler, partition, and module settings from the site before running. Stage the conda packages, Python wheels, and data on a host with network access if compute nodes are offline. Select a compatible TorchVision CUDA build for the detected driver. Keep the run commands independent of the scheduler.
 
 ```bash
 # Planned commands once the implementation is present and dependencies are installed.
+conda activate cuda-wbf
 nvidia-smi
 nvcc --version
 cmake --version

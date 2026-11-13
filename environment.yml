@@ -1,0 +1,15 @@
+name: cuda-wbf
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - cmake>=3.24
+  - ninja
+  - pip:
+      - ensemble-boxes==1.0.9
+      - numpy==2.2.6
+      - numba==0.61.2
+      - pybind11==2.13.6
+      - pytest==8.3.5
+      - scikit-build-core==0.11.6
