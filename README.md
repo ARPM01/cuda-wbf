@@ -86,7 +86,7 @@ Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per
 
 Start with the [implementation plan](IMPLEMENTATION_PLAN.md). It defines the reference behavior, the two CUDA kernels, the SHARC bring-up sequence, and the COCO benchmark protocol. The plan includes a CPU-only build for development on machines without CUDA.
 
-The first implementation milestone provides a CPU-only C++17 extension. CUDA backends and the performance runner are pending.
+The first implementation milestone provides a CPU-only C++17 fusion backend. CUDA backends and the performance runner are pending.
 
 Use Python 3.11 in an isolated environment. Install the pinned runtime and development dependencies:
 
@@ -103,3 +103,7 @@ python -m pytest
 ```
 
 CMake installs the Python package and extension together directly under the supplied prefix. A wheel can also be built and installed with `python -m pip install '.[dev]'`; CUDA is disabled by default.
+
+Call `cuda_wbf.fuse(images, weights, backend="cpp", iou_thr=0.7, skip_box_thr=0.001)` with one list of sources per image. Each source is a `(boxes, scores, labels)` tuple: normalized `(N, 4)` xyxy boxes, `(N,)` scores in `(0, 1]`, and `(N,)` integer labels. Keep every configured source slot, using correctly shaped empty arrays when necessary. The result contains one score-ordered tuple per image. Boxes and scores are float64; labels are int64.
+
+Inputs must be finite, coordinates must be in `[0, 1]` with positive box area, and source weights must be positive with a finite sum. Weights are canonicalized to float64; input score precision is preserved for the reference prefilter's threshold comparison. The API rejects invalid data before calling the upstream prefilter. Class grouping and both score sorts reuse the pinned reference behavior. The native loop preserves singleton precision and rounds merged coordinates and scores as the reference does. Requests for `cuda_groups` or `cuda_coop` currently raise an actionable error.
