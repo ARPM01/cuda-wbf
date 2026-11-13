@@ -26,9 +26,12 @@ The fixtures cover empty inputs, multiple images/classes, source weighting and a
 
 ## Reproduction
 
-Follow the Release build and test commands in [README.md](../README.md). To check undefined behavior using GCC or Clang, configure a separate build:
+From the repository root, create the conda environment with `conda env create --file environment.yml` if it does not exist, then follow the Release build and test commands in [README.md](../README.md#technical-reference). The results above describe the original validation environment; the conda environment provides the same Python minor version and pinned Python dependencies for reproduction.
+
+To check undefined behavior using GCC or Clang, activate the environment and configure a separate build:
 
 ```bash
+conda activate cuda-wbf
 cmake -S . -B build/cpu-ubsan -DCMAKE_BUILD_TYPE=Debug -DWBF_ENABLE_CUDA=OFF \
   -DPython_EXECUTABLE="$(command -v python)" \
   -Dpybind11_DIR="$(python -m pybind11 --cmakedir)" \
