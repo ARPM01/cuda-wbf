@@ -14,6 +14,13 @@ struct WorkspaceStats {
     int device;
 };
 
+struct DeviceInfo {
+    std::string name;
+    int device, major, minor, runtime_version, driver_version;
+};
+
+DeviceInfo cuda_device_info();
+
 // Owns one execution stream and grow-only device storage. Independent workspaces
 // may run concurrently. Each operation, and the complete fuse call, is serialized.
 class CudaWorkspace {
