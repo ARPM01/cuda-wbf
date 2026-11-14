@@ -1,7 +1,11 @@
 #include "core.hpp"
+#ifdef WBF_HAS_CUDA
+#include "cuda.hpp"
+#endif
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include <cmath>
 #include <limits>
@@ -14,8 +18,8 @@ namespace {
 using Rows = py::array_t<double, py::array::c_style>;
 using Offsets = py::array_t<std::int64_t, py::array::c_style>;
 
-py::tuple fuse_groups(const Rows& candidates, const Offsets& offsets,
-                      std::size_t sources, double weight_sum, double iou_thr) {
+void validate_inputs(const Rows& candidates, const Offsets& offsets,
+                     std::size_t sources, double weight_sum, double iou_thr) {
     if (candidates.ndim() != 2 || candidates.shape(1) != 5) {
         throw py::value_error("candidates must have shape (N, 5)");
     }
@@ -45,16 +49,9 @@ py::tuple fuse_groups(const Rows& candidates, const Offsets& offsets,
             throw py::value_error("candidates must have positive scores and box area");
         }
     }
-    wbf::Result result;
-    {
-        // Release the Global Interpreter Lock so other Python threads can run
-        // during the C++ calculation. Leaving this block reacquires the lock
-        // before we allocate and fill the output NumPy arrays.
-        py::gil_scoped_release release;
-        result = wbf::fuse_groups(candidates.data(), static_cast<std::size_t>(candidates.shape(0)),
-                                  offsets.data(), static_cast<std::size_t>(offsets.size() - 1),
-                                  sources, weight_sum, iou_thr);
-    }
+}
+
+py::tuple numpy_result(const wbf::Result& result) {
     if (result.rows.size() > static_cast<std::size_t>(std::numeric_limits<py::ssize_t>::max() / 5)) {
         throw std::overflow_error("fusion result is too large for a NumPy array");
     }
@@ -74,6 +71,23 @@ py::tuple fuse_groups(const Rows& candidates, const Offsets& offsets,
     }
     return py::make_tuple(values, output_offsets);
 }
+
+py::tuple fuse_groups(const Rows& candidates, const Offsets& offsets,
+                      std::size_t sources, double weight_sum, double iou_thr) {
+    validate_inputs(candidates, offsets, sources, weight_sum, iou_thr);
+    const auto* data = candidates.data();
+    const auto* slices = offsets.data();
+    const auto count = static_cast<std::size_t>(candidates.shape(0));
+    const auto groups = static_cast<std::size_t>(offsets.size() - 1);
+    wbf::Result result;
+    {
+        // Other Python threads can run during fusion. Leaving this block
+        // reacquires the interpreter lock before numpy_result creates arrays.
+        py::gil_scoped_release release;
+        result = wbf::fuse_groups(data, count, slices, groups, sources, weight_sum, iou_thr);
+    }
+    return numpy_result(result);
+}
 }  // namespace
 
 PYBIND11_MODULE(_native, module) {
@@ -81,7 +95,11 @@ PYBIND11_MODULE(_native, module) {
     module.def("build_info", [] {
         py::dict info;
         info["cxx_standard"] = 17;
+#ifdef WBF_HAS_CUDA
+        info["cuda_enabled"] = true;
+#else
         info["cuda_enabled"] = false;
+#endif
         return info;
     });
     // Register the wrapper as _native.fuse_groups. noconvert() requires callers
@@ -89,4 +107,61 @@ PYBIND11_MODULE(_native, module) {
     module.def("fuse_groups", &fuse_groups, py::arg("candidates").noconvert(),
                py::arg("offsets").noconvert(), py::arg("sources"),
                py::arg("weight_sum"), py::arg("iou_thr"));
+    module.def("available_backends", [] {
+        std::vector<std::string> backends{"cpp"};
+#ifdef WBF_HAS_CUDA
+        backends.push_back("cuda_groups");
+#endif
+        return backends;
+    });
+#ifdef WBF_HAS_CUDA
+    py::class_<wbf::CudaWorkspace>(module, "CudaWorkspace")
+        .def(py::init<>())
+        .def("upload", [](wbf::CudaWorkspace& workspace, const Rows& candidates, const Offsets& offsets,
+                           std::size_t sources, double weight_sum, double iou_thr) {
+            validate_inputs(candidates, offsets, sources, weight_sum, iou_thr);
+            const auto* data = candidates.data();
+            const auto* slices = offsets.data();
+            const auto count = static_cast<std::size_t>(candidates.shape(0));
+            const auto groups = static_cast<std::size_t>(offsets.size() - 1);
+            py::gil_scoped_release release;
+            workspace.upload(data, count, slices, groups, sources, weight_sum, iou_thr);
+        }, py::arg("candidates").noconvert(), py::arg("offsets").noconvert(),
+           py::arg("sources"), py::arg("weight_sum"), py::arg("iou_thr"))
+        .def("launch", &wbf::CudaWorkspace::launch, py::arg("backend"), py::call_guard<py::gil_scoped_release>())
+        .def("download", [](wbf::CudaWorkspace& workspace) {
+            wbf::Result result;
+            { py::gil_scoped_release release; result = workspace.download(); }
+            return numpy_result(result);
+        })
+        .def("fuse", [](wbf::CudaWorkspace& workspace, const Rows& candidates, const Offsets& offsets,
+                         std::size_t sources, double weight_sum, double iou_thr, const std::string& backend) {
+            validate_inputs(candidates, offsets, sources, weight_sum, iou_thr);
+            const auto* data = candidates.data();
+            const auto* slices = offsets.data();
+            const auto count = static_cast<std::size_t>(candidates.shape(0));
+            const auto groups = static_cast<std::size_t>(offsets.size() - 1);
+            wbf::Result result;
+            {
+                py::gil_scoped_release release;
+                result = workspace.fuse(data, count, slices, groups, sources, weight_sum, iou_thr, backend);
+            }
+            return numpy_result(result);
+        }, py::arg("candidates").noconvert(), py::arg("offsets").noconvert(),
+           py::arg("sources"), py::arg("weight_sum"), py::arg("iou_thr"), py::arg("backend"))
+        .def_property_readonly("stats", [](const wbf::CudaWorkspace& workspace) {
+            const auto stats = workspace.stats();
+            py::dict result;
+            result["capacity_boxes"] = stats.capacity_boxes;
+            result["capacity_groups"] = stats.capacity_groups;
+            result["allocated_bytes"] = stats.allocated_bytes;
+            result["upload_bytes"] = stats.upload_bytes;
+            result["download_bytes"] = stats.download_bytes;
+            result["input_boxes"] = stats.input_boxes;
+            result["groups"] = stats.groups;
+            result["kernel_launches"] = stats.kernel_launches;
+            result["device"] = stats.device;
+            return result;
+        });
+#endif
 }
