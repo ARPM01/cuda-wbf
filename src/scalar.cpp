@@ -10,26 +10,30 @@ namespace wbf {
 Result fuse_groups(const double* candidates, std::size_t count,
                    const std::int64_t* offsets, std::size_t groups,
                    std::size_t sources, double weight_sum, double iou_thr) {
+    // Every candidate can create at most one output row. The result offsets
+    // start at zero and record the cumulative number of fused rows after
+    // each group, so they index the compact output.
     Result result;
     result.rows.reserve(count);
     result.offsets.reserve(groups + 1);
     result.offsets.push_back(0);
-    // Each group contains one class from one image. Start with fresh clusters
-    // for each group and visit its candidates in weighted-score order.
+    // Preprocessing packs each image/class group into a contiguous slice
+    // in descending weighted-score order. Process each slice independently.
     for (std::size_t group = 0; group < groups; ++group) {
         std::vector<Cluster> clusters;
         clusters.reserve(static_cast<std::size_t>(offsets[group + 1] - offsets[group]));
         for (auto index = offsets[group]; index < offsets[group + 1]; ++index) {
-            // Move five numbers per row to find this candidate's score.
+            // Each packed row is (weighted_score, x1, y1, x2, y2).
             const double* candidate = candidates + static_cast<std::size_t>(index) * 5;
-            // clusters.size() is one past the last valid cluster index.
-            // Use it to indicate that no cluster has qualified yet.
+            // Use the next free slot as the initial best index. If the scan
+            // leaves it selected, the candidate will start a new cluster there.
             std::size_t best = clusters.size();
             double best_iou = iou_thr;
             for (std::size_t slot = 0; slot < clusters.size(); ++slot) {
                 const double overlap = matching_iou(clusters[slot].representative, candidate);
-                // Starting best_iou at the threshold makes the cutoff strict.
-                // Using > also keeps the first cluster found when two tie.
+                // A match must beat the threshold. Scan in creation order
+                // and replace the best match only for a strictly higher IoU,
+                // so equal overlaps favor the earliest cluster.
                 if (overlap > best_iou) {
                     best_iou = overlap;
                     best = slot;
@@ -38,13 +42,16 @@ Result fuse_groups(const double* candidates, std::size_t count,
             if (best == clusters.size()) {
                 clusters.emplace_back();
             }
-            // Update the representative now so the next candidate compares
-            // against the newly fused box.
+            // Appending can move the fused box. Update it before the next
+            // candidate computes IoU, since that candidate's match can
+            // depend on where the previous candidate moved the box.
             if (!append_cluster(clusters[best], candidate)) {
                 throw std::overflow_error("Weighted cluster arithmetic overflows float32; use smaller source weights.");
             }
         }
         for (const auto& cluster : clusters) {
+            // Copy the finished box and apply source normalization to its
+            // score after all of the group's members have been assigned.
             Row output{};
             std::copy_n(cluster.representative, 5, output.begin());
             output[0] = scaled_score(cluster, sources, weight_sum);
