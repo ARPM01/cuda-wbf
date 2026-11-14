@@ -12,10 +12,12 @@ pytestmark = [pytest.mark.cuda, pytest.mark.skipif(
 
 @pytest.mark.parametrize("case", fixture_cases() + list(randomized_cases()), ids=lambda case: case.name)
 def test_group_kernel_parity(case):
+    """Compare the CUDA group kernel with the Python oracle."""
     check_case(case, backend="cuda_groups")
 
 
 def test_resident_launch_and_transfer_accounting():
+    """Verify relaunches reuse uploaded inputs and report exact transfer bytes."""
     workspace = _native.CudaWorkspace()
     rows = np.array([[0.9, 0, 0, 0.5, 0.5], [0.6, 0, 0, 0.5, 0.5]])
     offsets = np.array([0, 2], np.int64)
@@ -35,6 +37,7 @@ def test_resident_launch_and_transfer_accounting():
 
 
 def test_workspace_growth_reuse_empty_and_state_errors():
+    """Check buffer growth and reuse, empty inputs, and invalid call order."""
     workspace = _native.CudaWorkspace()
     with pytest.raises(RuntimeError, match="Upload"):
         workspace.launch("cuda_groups")
@@ -57,6 +60,7 @@ def test_workspace_growth_reuse_empty_and_state_errors():
 
 
 def test_overflow_is_reported_and_workspace_can_be_reused():
+    """Verify float32 overflow is reported and the workspace recovers."""
     workspace = _native.CudaWorkspace()
     offsets = np.array([0, 2], np.int64)
     with pytest.raises(OverflowError, match="float32"):
