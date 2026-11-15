@@ -8,11 +8,11 @@ A mini project to implement Weighted Boxes Fusion (WBF) for object detection in 
 
 Implementation is organized into four milestones, each delivered as a stack of focused pull requests. The first PR in a milestone targets `main`; each subsequent PR targets the preceding branch. Review and merge each stack from the bottom up.
 
-Milestones 1 and 2 are implemented and tested in the open CPU and CUDA stacks below; neither stack has been merged into `main`. Milestones 3–4 are planned. Entries such as M3.1 are planning identifiers, not existing GitHub PR numbers.
+Milestone 1 has merged into `main`. Milestone 2 is implemented and tested in the open CUDA stack below. Milestones 3–4 are planned. Entries such as M3.1 are planning identifiers, not existing GitHub PR numbers.
 
 | Milestone | Outcome | Status | Acceptance gate |
 | --- | --- | --- | --- |
-| 1. Build and CPU correctness | A usable scalar C++ backend with Python bindings and oracle verification | Implemented in [#1](https://github.com/ARPM01/cuda-wbf/pull/1), [#2](https://github.com/ARPM01/cuda-wbf/pull/2), and [#3](https://github.com/ARPM01/cuda-wbf/pull/3); awaiting review and merge | CPU fixture parity |
+| 1. Build and CPU correctness | A usable scalar C++ backend with Python bindings and oracle verification | Implemented in [#1](https://github.com/ARPM01/cuda-wbf/pull/1), [#2](https://github.com/ARPM01/cuda-wbf/pull/2), and [#3](https://github.com/ARPM01/cuda-wbf/pull/3) and merged into `main` | CPU fixture parity |
 | 2. CUDA correctness | Both CUDA backends with reusable storage and shared arithmetic | Implemented in [#5](https://github.com/ARPM01/cuda-wbf/pull/5), [#6](https://github.com/ARPM01/cuda-wbf/pull/6), and [#7](https://github.com/ARPM01/cuda-wbf/pull/7); awaiting review and merge | GPU fixture parity and Compute Sanitizer passed locally |
 | 3. Real-data verification and comparisons | Reproducible COCO ingestion, evaluation, and NMS baselines | Planned; follows milestone 2 | Full-image parity and COCO AP agreement |
 | 4. Performance study on SHARC | Reproducible latency measurements, profiling, and a results report | Planned; follows milestone 3 | Publish measurements only after parity passes |
@@ -22,12 +22,12 @@ Milestones 1 and 2 are implemented and tested in the open CPU and CUDA stacks be
 | PR | Branch → base | Scope | Validation |
 | --- | --- | --- | --- |
 | [#1 — Build and packaging](https://github.com/ARPM01/cuda-wbf/pull/1) | `stack/cpu-01-build` → `main` | CMake 3.24+, C++17, Python 3.11, pybind11, pinned dependencies, CUDA disabled by default, prefix installation, and wheel packaging | Configure/build/install, extension smoke test, and wheel build |
-| [#2 — Scalar fusion API](https://github.com/ARPM01/cuda-wbf/pull/2) | `stack/cpu-02-fusion` → `stack/cpu-01-build` | Validated `cuda_wbf.fuse` API, upstream prefilter and sort ordering, scalar matching against current representatives, reference arithmetic, and unavailable-backend errors | API checks and seeded oracle comparisons |
-| [#3 — Verification and CI](https://github.com/ARPM01/cuda-wbf/pull/3) | `stack/cpu-03-verification` → `stack/cpu-02-fusion` | `verify --cpu-only`, named fixtures, randomized parity checks, invalid-input tests, Linux/macOS CI, and a machine validation report | Installed-wheel tests, CPU verification, and a Debug sanitizer build |
+| [#2 — Scalar fusion API](https://github.com/ARPM01/cuda-wbf/pull/2) | `stack/cpu-02-fusion` → `main` | Validated `cuda_wbf.fuse` API, upstream prefilter and sort ordering, scalar matching against current representatives, reference arithmetic, and unavailable-backend errors | API checks and seeded oracle comparisons |
+| [#3 — Verification and CI](https://github.com/ARPM01/cuda-wbf/pull/3) | `stack/cpu-03-verification` → `main` | `verify --cpu-only`, named fixtures, randomized parity checks, invalid-input tests, Linux/macOS CI, and a machine validation report | Installed-wheel tests, CPU verification, and a Debug sanitizer build |
 
 The CPU stack was tested on the development machine with Python 3.11.18, GCC 13.3, and CMake 3.28.3. All **210 tests** passed against the installed wheel from outside the checkout and against a Debug build with UndefinedBehaviorSanitizer. Verification covered **20 fixtures plus 120 randomized cases across 261 images**, with exact ordered labels/counts and zero observed coordinate or score error against the pinned oracle. These are the CPU stack's local results. GPU fixture validation is reported under milestone 2; real-data verification remains pending.
 
-See the [CPU validation report](https://github.com/ARPM01/cuda-wbf/blob/691a37d913836b1446ac0cfe510d8f02f724e962/docs/CPU_VALIDATION.md). The verification entry point provided by this stack is:
+See the [CPU validation report](docs/CPU_VALIDATION.md). The verification entry point provided by this stack is:
 
 ```bash
 python -m cuda_wbf.bench verify --cpu-only
@@ -37,11 +37,11 @@ python -m cuda_wbf.bench verify --cpu-only
 
 ## Milestone 2: CUDA correctness
 
-The CUDA stack currently builds on CPU PR #3 because the CPU stack remains open. PR #5 temporarily targets `stack/cpu-03-verification`; retarget it to `main` after the CPU stack merges. PRs #6 and #7 target their immediate predecessors.
+PR #5 targets `main`, which includes the merged CPU stack. PRs #6 and #7 target their immediate predecessors.
 
 | PR | Branch → base | Scope | Validation |
 | --- | --- | --- | --- |
-| [#5 — CUDA runtime and serial group kernel](https://github.com/ARPM01/cuda-wbf/pull/5) | `stack/cuda-01-groups` → `stack/cpu-03-verification` | Enable optional CUDA builds; accept caller-selected architectures; share cluster arithmetic with the CPU backend; implement checked reusable workspace, separate upload/launch/download operations, error handling, and `cuda_groups` with one thread per nonempty image/class group | Build with CUDA both OFF and ON; compare the group kernel with CPU and Python fixtures; verify empty calls launch no kernel |
+| [#5 — CUDA runtime and serial group kernel](https://github.com/ARPM01/cuda-wbf/pull/5) | `stack/cuda-01-groups` → `main` | Enable optional CUDA builds; accept caller-selected architectures; share cluster arithmetic with the CPU backend; implement checked reusable workspace, separate upload/launch/download operations, error handling, and `cuda_groups` with one thread per nonempty image/class group | Build with CUDA both OFF and ON; compare the group kernel with CPU and Python fixtures; verify empty calls launch no kernel |
 | [#6 — Cooperative group kernel](https://github.com/ARPM01/cuda-wbf/pull/6) | `stack/cuda-02-coop` → `stack/cuda-01-groups` | Implement `cuda_coop` with one 128-thread block per group, strided representative scans, highest-IoU/lowest-index reduction, and synchronized updates | Reuse the same fixtures; test ties, moving representatives, and groups exceeding 128 live clusters |
 | [#7 — GPU verification and safety](https://github.com/ARPM01/cuda-wbf/pull/7) | `stack/cuda-03-verification` → `stack/cuda-02-coop` | Extend verification to both GPU backends; exercise workspace reuse and alternating call sizes; document GPU safety commands and results | Oracle parity on both kernels plus Compute Sanitizer `memcheck` and `synccheck` |
 
@@ -78,7 +78,7 @@ Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per
 
 1. Keep each PR focused on the row above and include its own validation evidence.
 2. Base the first PR of each milestone on current `main`; base later PRs on their immediate predecessor.
-3. Review and merge in dependency order. The current order is **#1 → #2 → #3 → #5 → #6 → #7**.
+3. Review and merge in dependency order. The remaining order is **#5 → #6 → #7**.
 4. After a parent merges, retarget its child to `main` and update the remaining stack. If the parent was squash-merged or rebased, rebase descendants so their diffs contain only their own changes. Use force-with-lease if rewritten branches must be published.
 5. Update this README when PRs open or merge, and attach gate evidence before moving to the next milestone.
 
@@ -86,7 +86,7 @@ Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per
 
 Start with the [implementation plan](IMPLEMENTATION_PLAN.md). It defines the reference behavior, the two CUDA kernels, the SHARC bring-up sequence, and the COCO benchmark protocol. The plan includes a CPU-only build for development on machines without CUDA.
 
-The first implementation milestone provides a CPU-only C++17 fusion backend. CUDA backends and the performance runner are pending.
+The implementation provides a C++17 fusion backend and an optional CUDA group kernel. The cooperative CUDA kernel and performance runner are pending.
 
 Install conda (Miniconda or Miniforge) and a C++17 compiler such as GCC or Clang. From the repository root, create and activate the Python 3.11 environment:
 
@@ -123,7 +123,21 @@ Unsetting `PYTHONPATH` ensures these commands use the installed wheel rather tha
 
 Call `cuda_wbf.fuse(images, weights, backend="cpp", iou_thr=0.7, skip_box_thr=0.001)` with one list of sources per image. Each source is a `(boxes, scores, labels)` tuple: normalized `(N, 4)` xyxy boxes, `(N,)` scores in `(0, 1]`, and `(N,)` integer labels. Keep every configured source slot, using correctly shaped empty arrays when necessary. The result contains one score-ordered tuple per image. Boxes and scores are float64; labels are int64.
 
-Inputs must be finite, coordinates must be in `[0, 1]` with positive box area, and source weights must be positive with a finite sum. Weights are canonicalized to float64; input score precision is preserved for the reference prefilter's threshold comparison. The API rejects invalid data before calling the upstream prefilter. Class grouping and both score sorts reuse the pinned reference behavior. The native loop preserves singleton precision and rounds merged coordinates and scores as the reference does. Requests for `cuda_groups` or `cuda_coop` currently raise an actionable error.
+Inputs must be finite, coordinates must be in `[0, 1]` with positive box area, and source weights must be positive with a finite sum. Weights are canonicalized to float64; input score precision is preserved for the reference prefilter's threshold comparison. The API rejects invalid data before calling the upstream prefilter. Class grouping and both score sorts reuse the pinned reference behavior. The native loop preserves singleton precision and rounds merged coordinates and scores as the reference does. `cuda_wbf.available_backends()` reports compiled backends; requests for an unavailable backend raise an actionable error.
+
+For CUDA, use a separate installation and a driver-compatible CUDA Toolkit 11.8 or newer:
+
+```bash
+cmake -S . -B build/cuda -DCMAKE_BUILD_TYPE=Release -DWBF_ENABLE_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES=native -DPython_EXECUTABLE="$(command -v python)" \
+  -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+cmake --build build/cuda --parallel
+cmake --install build/cuda --prefix "$PWD/build/cuda/stage"
+export PYTHONPATH="$PWD/build/cuda/stage"
+WBF_TEST_CUDA=1 python -m pytest -q
+```
+
+Use an explicit architecture, such as `80` for A100, when compiling without a visible GPU. Select one GPU before starting Python with `CUDA_VISIBLE_DEVICES`. Call the same `fuse` API with `backend="cuda_groups"`. The API keeps one reusable workspace per Python thread and checks device availability on the first nonempty CUDA call. Empty results require no kernel launch. See [CUDA runtime design](docs/CUDA_RUNTIME.md) for the shared layout and resident execution interface.
 
 `verify --cpu-only` requires no COCO data or GPU. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, and the installed CLI. The full data loader, CUDA verification, `preflight`, and performance `run` commands remain later milestones.
 

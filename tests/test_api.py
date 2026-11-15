@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ensemble_boxes import weighted_boxes_fusion
 
-from cuda_wbf import fuse
+from cuda_wbf import available_backends, fuse
 
 
 def test_scalar_matches_oracle():
@@ -36,5 +36,7 @@ def test_float32_score_floor_uses_upstream_comparison():
 
 @pytest.mark.parametrize("backend", ["cuda_groups", "cuda_coop"])
 def test_cuda_backend_error(backend):
+    if backend in available_backends():
+        pytest.skip("this backend is compiled in")
     with pytest.raises(RuntimeError, match="Use backend='cpp'"):
         fuse([], [1], backend=backend)

@@ -24,3 +24,4 @@ wheel.packages = []
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = ["cuda: GPU tests; opt in with WBF_TEST_CUDA=1"]
