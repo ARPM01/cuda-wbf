@@ -134,6 +134,102 @@ __global__ void groups_kernel(const double* candidates, const std::int64_t* offs
     counts[group] = live;
 }
 
+__global__ void coop_kernel(const double* candidates, const std::int64_t* offsets,
+                            Cluster* clusters, double* output, std::int64_t* counts,
+                            int* error, std::size_t sources, double weight_sum, double iou_thr) {
+    // One 128-thread block owns the contiguous slice for one image/class
+    // group. Here lane is the thread's index in the whole block (0 through 127).
+    const auto group = static_cast<std::size_t>(blockIdx.x);
+    const unsigned lane = threadIdx.x;
+    const auto start = offsets[group];
+
+    // Each thread has one entry in these shared arrays for its best match.
+    // The block reuses the entries for the reduction and for each candidate.
+    __shared__ double best_ious[128];
+    __shared__ std::int64_t best_indices[128];
+    __shared__ std::int64_t live;
+    __shared__ int failed;
+    // Only thread 0 initializes and changes the group's live count and error
+    // flag. Wait for initialization before any thread scans the group.
+    if (lane == 0) { live = 0; failed = 0; }
+    __syncthreads();
+
+    // All threads work on the same candidate at a time, in input order.
+    // Each candidate can change the representative used by the next one.
+    for (auto index = start; index < offsets[group + 1]; ++index) {
+        const double* candidate = candidates + index * 5;
+        double local_iou = iou_thr;
+        std::int64_t local_index = INT64_MAX;
+
+        // A representative is the cluster's current fused box. Thread t
+        // compares the candidate against slots t, t + 128, t + 256, and so on
+        // up to live. For example, thread 72 checks slots 72 and 200 if both
+        // exist. Together the threads visit each live slot exactly once.
+        // The threshold must be exceeded. Within a thread, visiting slots
+        // in ascending order and using > keeps the earliest slot on a tie.
+        for (std::int64_t slot = lane; slot < live; slot += 128) {
+            const double overlap = matching_iou(clusters[start + slot].representative, candidate);
+            if (overlap > local_iou) { local_iou = overlap; local_index = slot; }
+        }
+        // Threads with no qualifying match publish (iou_thr, INT64_MAX),
+        // including threads whose starting slot is already outside live.
+        best_ious[lane] = local_iou;
+        best_indices[lane] = local_index;
+        __syncthreads();
+
+        // Halve the number of surviving matches each round. Threads 0-63
+        // first compare against entries 64-127. Threads 0-31 then compare
+        // against the surviving entries 32-63, and so on until thread 0
+        // holds the winner. All 128 threads wait between rounds so no
+        // thread reads an entry before its previous-round update.
+        // Compare by highest IoU, then lowest cluster slot, to preserve
+        // the serial kernel's creation-order tie break across threads.
+        for (unsigned stride = 64; stride > 0; stride /= 2) {
+            if (lane < stride) {
+                const double other_iou = best_ious[lane + stride];
+                const auto other_index = best_indices[lane + stride];
+                if (other_iou > best_ious[lane] ||
+                    (other_iou == best_ious[lane] && other_index < best_indices[lane])) {
+                    best_ious[lane] = other_iou;
+                    best_indices[lane] = other_index;
+                }
+            }
+            __syncthreads();
+        }
+
+        // Thread 0 commits the result. If the sentinel survived the entire
+        // reduction, start a cluster at the next free slot. Appending the
+        // candidate updates the running sums and the representative box.
+        if (lane == 0) {
+            auto best = best_indices[0];
+            if (best == INT64_MAX) {
+                best = live++;
+                clusters[start + best] = Cluster{};
+            }
+            if (!append_cluster(clusters[start + best], candidate)) {
+                failed = 1;
+                atomicExch(error, 1);
+            }
+        }
+        // Wait for the update before any thread moves on. This also makes
+        // the error decision uniform across the block, so every thread
+        // either exits here or reaches the next candidate's barriers.
+        __syncthreads();
+        if (failed) { return; }
+    }
+
+    // Reuse the same strided assignment to write the fused rows. Each live
+    // slot has a single writer. The host uses counts[group] to compact just
+    // the live prefix of this group's padded output slice after download.
+    for (std::int64_t slot = lane; slot < live; slot += 128) {
+        const auto& cluster = clusters[start + slot];
+        double* row = output + (start + slot) * 5;
+        row[0] = scaled_score(cluster, sources, weight_sum);
+        for (unsigned axis = 1; axis < 5; ++axis) { row[axis] = cluster.representative[axis]; }
+    }
+    if (lane == 0) { counts[group] = live; }
+}
+
 }  // namespace
 
 struct CudaWorkspace::Impl {
@@ -204,13 +300,16 @@ struct CudaWorkspace::Impl {
 
     void launch(const std::string& backend) {
         if (!uploaded) { throw std::runtime_error("Upload candidates before launching a CUDA kernel"); }
-        if (backend != "cuda_groups") { throw std::invalid_argument("Unknown or unavailable CUDA backend: " + backend); }
+        if (backend != "cuda_groups" && backend != "cuda_coop") {
+            throw std::invalid_argument("Unknown or unavailable CUDA backend: " + backend);
+        }
         DeviceGuard guard(device);
         launched = false;
         if (groups) {
-            // Round up so every group gets a thread, then check that the
-            // resulting grid fits the workspace device.
-            const auto blocks = (groups + 127) / 128;
+            // The serial kernel assigns one thread per group. The cooperative
+            // kernel assigns a full block per group.
+            const bool use_groups = backend == "cuda_groups";
+            const auto blocks = use_groups ? (groups + 127) / 128 : groups;
             if (blocks > static_cast<std::size_t>(max_grid_x)) {
                 throw std::overflow_error("Group count exceeds the CUDA launch grid limit");
             }
@@ -220,12 +319,20 @@ struct CudaWorkspace::Impl {
             check_cuda(cudaMemsetAsync(error.data, 0, sizeof(int), stream), "reset arithmetic status");
             check_cuda(cudaMemsetAsync(counts.data, 0, bytes_for(groups, sizeof(std::int64_t)), stream), "reset cluster counts");
             check_cuda(cudaMemsetAsync(output.data, 0, bytes_for(bytes_for(count, 5), sizeof(double)), stream), "clear padded output");
-            groups_kernel<<<static_cast<unsigned>(blocks), 128, 0, stream>>>(
-                candidates.data, offsets.data, groups, clusters.data, output.data, counts.data, error.data,
-                sources, weight_sum, iou_thr);
+            if (use_groups) {
+                groups_kernel<<<static_cast<unsigned>(blocks), 128, 0, stream>>>(
+                    candidates.data, offsets.data, groups, clusters.data, output.data, counts.data, error.data,
+                    sources, weight_sum, iou_thr);
+            } else {
+                // Keep the block width in sync with coop_kernel's shared
+                // arrays, scan and write strides, and first reduction stride.
+                coop_kernel<<<static_cast<unsigned>(blocks), 128, 0, stream>>>(
+                    candidates.data, offsets.data, clusters.data, output.data, counts.data, error.data,
+                    sources, weight_sum, iou_thr);
+            }
             // Check launch submission here. Download synchronizes the stream
             // to surface errors that happen while the kernel is executing.
-            check_cuda(cudaGetLastError(), "launch cuda_groups");
+            check_cuda(cudaGetLastError(), use_groups ? "launch cuda_groups" : "launch cuda_coop");
             ++kernel_launches;
         }
         launched = true;

@@ -37,12 +37,12 @@ python -m cuda_wbf.bench verify --cpu-only
 
 ## Milestone 2: CUDA correctness
 
-PR #5 targets `main`, which includes the merged CPU stack. PRs #6 and #7 target their immediate predecessors.
+PR #5 has merged into `main`. PR #6 targets `main`, and PR #7 targets PR #6.
 
 | PR | Branch → base | Scope | Validation |
 | --- | --- | --- | --- |
 | [#5 — CUDA runtime and serial group kernel](https://github.com/ARPM01/cuda-wbf/pull/5) | `stack/cuda-01-groups` → `main` | Enable optional CUDA builds; accept caller-selected architectures; share cluster arithmetic with the CPU backend; implement checked reusable workspace, separate upload/launch/download operations, error handling, and `cuda_groups` with one thread per nonempty image/class group | Build with CUDA both OFF and ON; compare the group kernel with CPU and Python fixtures; verify empty calls launch no kernel |
-| [#6 — Cooperative group kernel](https://github.com/ARPM01/cuda-wbf/pull/6) | `stack/cuda-02-coop` → `stack/cuda-01-groups` | Implement `cuda_coop` with one 128-thread block per group, strided representative scans, highest-IoU/lowest-index reduction, and synchronized updates | Reuse the same fixtures; test ties, moving representatives, and groups exceeding 128 live clusters |
+| [#6 — Cooperative group kernel](https://github.com/ARPM01/cuda-wbf/pull/6) | `stack/cuda-02-coop` → `main` | Implement `cuda_coop` with one 128-thread block per group, strided representative scans, highest-IoU/lowest-index reduction, and synchronized updates | Reuse the same fixtures; test ties, moving representatives, and groups exceeding 128 live clusters |
 | [#7 — GPU verification and safety](https://github.com/ARPM01/cuda-wbf/pull/7) | `stack/cuda-03-verification` → `stack/cuda-02-coop` | Extend verification to both GPU backends; exercise workspace reuse and alternating call sizes; document GPU safety commands and results | Oracle parity on both kernels plus Compute Sanitizer `memcheck` and `synccheck` |
 
 The installed CUDA wheel passed **504 tests** on one A100 with CUDA 12.8. CPU-only regression testing passed **211 tests**. All three backends checked the same **261 images** against the oracle with exact counts/labels and zero observed coordinate or score error. Compute Sanitizer memcheck and synccheck each passed **55 fixture/safety tests** with zero errors; memcheck also reported zero leaked bytes. An additional **53-test racecheck** pass reported zero hazards. Its selection excludes Python thread-local teardown and the CLI subprocess because the tested racecheck run stalled in thread lifecycle; both tests passed normal, memcheck, and synccheck runs.
@@ -78,7 +78,7 @@ Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per
 
 1. Keep each PR focused on the row above and include its own validation evidence.
 2. Base the first PR of each milestone on current `main`; base later PRs on their immediate predecessor.
-3. Review and merge in dependency order. The remaining order is **#5 → #6 → #7**.
+3. Review and merge in dependency order. The remaining order is **#6 → #7**.
 4. After a parent merges, retarget its child to `main` and update the remaining stack. If the parent was squash-merged or rebased, rebase descendants so their diffs contain only their own changes. Use force-with-lease if rewritten branches must be published.
 5. Update this README when PRs open or merge, and attach gate evidence before moving to the next milestone.
 
@@ -86,7 +86,7 @@ Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per
 
 Start with the [implementation plan](IMPLEMENTATION_PLAN.md). It defines the reference behavior, the two CUDA kernels, the SHARC bring-up sequence, and the COCO benchmark protocol. The plan includes a CPU-only build for development on machines without CUDA.
 
-The implementation provides a C++17 fusion backend and an optional CUDA group kernel. The cooperative CUDA kernel and performance runner are pending.
+The implementation provides a C++17 fusion backend and two optional CUDA kernels. The data/evaluation and performance runners are pending.
 
 Install conda (Miniconda or Miniforge) and a C++17 compiler such as GCC or Clang. From the repository root, create and activate the Python 3.11 environment:
 
@@ -137,7 +137,7 @@ export PYTHONPATH="$PWD/build/cuda/stage"
 WBF_TEST_CUDA=1 python -m pytest -q
 ```
 
-Use an explicit architecture, such as `80` for A100, when compiling without a visible GPU. Select one GPU before starting Python with `CUDA_VISIBLE_DEVICES`. Call the same `fuse` API with `backend="cuda_groups"`. The API keeps one reusable workspace per Python thread and checks device availability on the first nonempty CUDA call. Empty results require no kernel launch. See [CUDA runtime design](docs/CUDA_RUNTIME.md) for the shared layout and resident execution interface.
+Use an explicit architecture, such as `80` for A100, when compiling without a visible GPU. Select one GPU before starting Python with `CUDA_VISIBLE_DEVICES`. Call the same `fuse` API with `backend="cuda_groups"` or `backend="cuda_coop"`. The first assigns one thread per image/class group; the second assigns a 128-thread block per group to search representatives cooperatively. Both preserve sequential candidate processing and share the same workspace and arithmetic. The API keeps one reusable workspace per Python thread and checks device availability on the first nonempty CUDA call. Empty results require no kernel launch. See [CUDA runtime design](docs/CUDA_RUNTIME.md) for the shared layout and resident execution interface.
 
 `verify --cpu-only` requires no COCO data or GPU. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, and the installed CLI. The full data loader, CUDA verification, `preflight`, and performance `run` commands remain later milestones.
 

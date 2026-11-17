@@ -28,4 +28,12 @@ For N candidates and G nonempty groups, the upload is `N * 5 * 8 + (G + 1) * 8` 
 
 On the development machine with CUDA 12.8 and an A100 (architecture 80), the CUDA build passed **352 tests**, with one unavailable-backend test skipped because `cuda_groups` is present. This includes the 20 CPU fixtures and 120 randomized cases against the Python oracle, resident relaunches, transfer accounting, workspace growth/reuse, empty inputs, and overflow recovery. The separate CPU-only build passed all **210 tests**.
 
-GPU correctness tests opt in with `WBF_TEST_CUDA=1`. The cooperative kernel and Compute Sanitizer gate follow in the dependent PRs. These checks make no performance claim.
+GPU correctness tests opt in with `WBF_TEST_CUDA=1`. The Compute Sanitizer gate follows in the verification PR. These checks make no performance claim.
+
+## Cooperative kernel
+
+`cuda_coop` assigns one 128-thread block to each nonempty group. Threads scan live representatives in strides of 128 and reduce pairs by greatest IoU, then lowest cluster index. Only thread 0 appends a cluster or updates its representative. Every reduction stage and representative update uses a block-wide barrier. Arithmetic overflow causes a uniform exit after a barrier, keeping the block synchronized.
+
+Dedicated checks exercise a match in cluster slot 200 and an equal-IoU choice between slots 127 and 128, where the earliest cluster belongs to the higher-numbered lane. The cooperative kernel uses the same workspace and arithmetic functions as the group kernel and scalar core.
+
+With both kernels enabled, the development machine passed **493 tests**, with two unavailable-backend checks skipped because both backends are compiled in. This includes the same 20 named fixtures and 120 randomized cases on each GPU backend. Compute Sanitizer validation follows in the third CUDA PR.
