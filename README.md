@@ -8,13 +8,13 @@ A mini project to implement Weighted Boxes Fusion (WBF) for object detection in 
 
 Implementation is organized into four milestones, each delivered as a stack of focused pull requests. The first PR in a milestone targets `main`; each subsequent PR targets the preceding branch. Review and merge each stack from the bottom up.
 
-Milestones 1 and 2 have merged into `main`. Milestone 3 adds COCO verification and NMS comparisons. Milestone 4 is planned. Entries such as M3.1 identify work in the delivery plan.
+Milestones 1 and 2 have merged into `main`. Milestone 3 adds COCO verification and NMS comparisons and is open for review. Milestone 4 is planned.
 
 | Milestone | Outcome | Status | Acceptance gate |
 | --- | --- | --- | --- |
 | 1. Build and CPU correctness | A usable scalar C++ backend with Python bindings and oracle verification | Implemented in [#1](https://github.com/ARPM01/cuda-wbf/pull/1), [#2](https://github.com/ARPM01/cuda-wbf/pull/2), and [#3](https://github.com/ARPM01/cuda-wbf/pull/3) and merged into `main` | CPU fixture parity |
 | 2. CUDA correctness | Both CUDA backends with reusable storage and shared arithmetic | Implemented in [#5](https://github.com/ARPM01/cuda-wbf/pull/5), [#6](https://github.com/ARPM01/cuda-wbf/pull/6), and [#7](https://github.com/ARPM01/cuda-wbf/pull/7) and merged into `main` | GPU fixture parity and Compute Sanitizer passed locally |
-| 3. Real-data verification and comparisons | Reproducible COCO ingestion, evaluation, and NMS baselines | Implemented and validated locally | Parity and COCO AP agreement passed on all 5,000 images. [Validation report](docs/COCO_VALIDATION.md) |
+| 3. Real-data verification and comparisons | Reproducible COCO ingestion, evaluation, and NMS baselines | Validated locally and open for review in #10, #11, and #12 | Parity and COCO AP agreement passed on all 5,000 images. [Validation report](docs/COCO_VALIDATION.md) |
 | 4. Performance study on SHARC | Reproducible latency measurements, profiling, and a results report | Planned; follows milestone 3 | Publish measurements only after parity passes |
 
 ## Milestone 1: Build and CPU correctness
@@ -53,11 +53,11 @@ See the [CUDA validation report](https://github.com/ARPM01/cuda-wbf/blob/9c5001b
 
 ## Milestone 3: Real-data verification and comparisons
 
-| Planned PR | Branch → base | Scope | Validation |
+| PR | Branch → base | Scope | Validation |
 | --- | --- | --- | --- |
-| M3.1 — Pinned data ingestion | `stack/data-01-ingestion` → `main` | Stage the upstream prediction archive and COCO annotations; pin filenames, source order, weights, and thresholds to upstream commit `796d4b1`; preserve row order, float32 parsing, category IDs, and empty source slots; record checksums and effective configuration | Loader fixtures for malformed rows, clipping, discarded boxes/scores, missing detections, and deterministic ordering |
-| M3.2 — Full-data parity and COCO evaluation | `stack/data-02-quality` → `stack/data-01-ingestion` | Extend `verify` with prediction/annotation arguments; compare every annotation image with Python WBF; convert normalized xyxy to pixel xywh for COCOeval; report AP, AP50, AP by object size, and AR100 | Full-val2017 counts, ordered labels, and numeric parity for both CUDA variants; absolute COCO AP difference at most `1e-4` versus Python |
-| M3.3 — NMS comparison methods | `stack/data-03-baselines` → `stack/data-02-quality` | Add upstream CPU hard NMS, Gaussian Soft-NMS, and TorchVision CUDA hard NMS with a separate benchmark dependency group | Check class awareness, source-weight scaling, score floors, IoU/sigma settings, and evaluation of the same full image set |
+| [#10 — Pinned data ingestion](https://github.com/ARPM01/cuda-wbf/pull/10) | `stack/data-01-ingestion` → `main` | Stage the upstream prediction archive and COCO annotations; pin filenames, source order, weights, and thresholds to upstream commit `796d4b1`; preserve row order, float32 parsing, category IDs, and empty source slots; record checksums and effective configuration | Loader fixtures for malformed rows, clipping, discarded boxes/scores, missing detections, and deterministic ordering |
+| [#11 — Full-data parity and COCO evaluation](https://github.com/ARPM01/cuda-wbf/pull/11) | `stack/data-02-quality` → `stack/data-01-ingestion` | Extend `verify` with prediction/annotation arguments; compare every annotation image with Python WBF; convert normalized xyxy to pixel xywh for COCOeval; report AP, AP50, AP by object size, and AR100 | Full-val2017 counts, ordered labels, and numeric parity for both CUDA variants; absolute COCO AP difference at most `1e-4` versus Python |
+| [#12 — NMS comparison methods](https://github.com/ARPM01/cuda-wbf/pull/12) | `stack/data-03-baselines` → `stack/data-02-quality` | Add upstream CPU hard NMS, Gaussian Soft-NMS, and TorchVision CUDA hard NMS with a separate benchmark dependency group | Check class awareness, source-weight scaling, score floors, IoU/sigma settings, and evaluation of the same full image set |
 
 **Gate:** every image must pass custom WBF parity, including images with empty outputs. Keep NMS quality results separate from the WBF acceptance gate. Use the same detections for all methods and real predictions for all quality measurements.
 
