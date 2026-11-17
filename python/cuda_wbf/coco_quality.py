@@ -80,6 +80,11 @@ def _verify_wbf(data, backends):
 
 
 def verify_coco(predictions, annotations, fixture_report, *, baselines=False):
+    print("Loading COCO annotations and predictions", file=sys.stderr)
+    return verify_coco_data(load_coco_data(predictions, annotations), fixture_report, baselines=baselines)
+
+
+def verify_coco_data(data, fixture_report, *, baselines=False):
     with redirect_stdout(sys.stderr):
         reports = fixture_report.get("backends", [fixture_report])
         backends = [report["backend"] for report in reports]
@@ -97,14 +102,19 @@ def verify_coco(predictions, annotations, fixture_report, *, baselines=False):
                 methods["torchvision_cuda_nms"] = nms.torchvision_cuda_nms(device["device"])
                 dependencies.update(torch=version("torch"), torchvision=version("torchvision"))
 
-        print("Loading COCO annotations and predictions", file=sys.stderr)
-        data = load_coco_data(predictions, annotations)
         evaluator = CocoEvaluator(data)
         outputs, errors = _verify_wbf(data, backends)
         quality = {}
         for name, results in outputs.items():
-            print(f"Evaluating {name}", file=sys.stderr)
-            quality[name] = {"metrics": evaluator.evaluate(results), "images": len(results)}
+            if errors.get(name) == (0., 0.):
+                # Exact coordinates, scores, ordered labels and counts give
+                # COCOeval the identical result rows in the identical order.
+                metrics = quality["python"]["metrics"].copy()
+                print(f"{name} exactly matches the evaluated Python detections", file=sys.stderr)
+            else:
+                print(f"Evaluating {name}", file=sys.stderr)
+                metrics = evaluator.evaluate(results)
+            quality[name] = {"metrics": metrics, "images": len(results)}
             if name in errors:
                 ap_diff = abs(quality[name]["metrics"]["AP"] - quality["python"]["metrics"]["AP"])
                 if ap_diff > AP_TOLERANCE:

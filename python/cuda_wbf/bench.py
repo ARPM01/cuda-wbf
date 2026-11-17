@@ -14,6 +14,11 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     preflight_parser = commands.add_parser("preflight", help="check backends and record the benchmark environment")
     preflight_parser.add_argument("--cpu-only", action="store_true", help="check only the scalar backend")
+    run = commands.add_parser("run", help="verify and measure the complete SHARC study")
+    run.add_argument("--predictions", type=Path, required=True, help="upstream benchmark.zip")
+    run.add_argument("--annotations", type=Path, required=True, help="COCO instances_val2017.json")
+    run.add_argument("--output", type=Path, required=True, help="new directory for the study artifacts")
+    run.add_argument("--allocation-note", help="description of the GPU assignment")
     verify = commands.add_parser("verify", help="check native fusion against the pinned Python oracle")
     verify.add_argument("--cpu-only", action="store_true", help="verify with the CPU backend")
     verify.add_argument("--fixtures-only", action="store_true", help="run named fixtures without randomized cases")
@@ -30,6 +35,16 @@ def main(argv=None):
         except (ValueError, RuntimeError, OSError) as error:
             print(f"Preflight failed: {error}", file=sys.stderr)
             return 1
+        return 0
+    if args.command == "run":
+        from .study import run_study
+
+        try:
+            report = run_study(args.predictions, args.annotations, args.output, allocation_note=args.allocation_note)
+        except (AssertionError, ValueError, RuntimeError, OSError, BadZipFile) as error:
+            print(f"Study failed: {error}", file=sys.stderr)
+            return 1
+        print(json.dumps(report, indent=2))
         return 0
     if (args.predictions is None) != (args.annotations is None):
         verify.error("--predictions and --annotations must be supplied together")
