@@ -8,14 +8,14 @@ A mini project to implement Weighted Boxes Fusion (WBF) for object detection in 
 
 Implementation is organized into four milestones, each delivered as a stack of focused pull requests. The first PR in a milestone targets `main`; each subsequent PR targets the preceding branch. Review and merge each stack from the bottom up.
 
-Milestones 1 and 2 have merged into `main`. Milestone 3 adds COCO verification and NMS comparisons and is open for review. Milestone 4 is planned.
+Milestones 1 and 2 have merged into `main`. Milestones 3 and 4 are open for review in dependency order.
 
 | Milestone | Outcome | Status | Acceptance gate |
 | --- | --- | --- | --- |
 | 1. Build and CPU correctness | A usable scalar C++ backend with Python bindings and oracle verification | Implemented in [#1](https://github.com/ARPM01/cuda-wbf/pull/1), [#2](https://github.com/ARPM01/cuda-wbf/pull/2), and [#3](https://github.com/ARPM01/cuda-wbf/pull/3) and merged into `main` | CPU fixture parity |
 | 2. CUDA correctness | Both CUDA backends with reusable storage and shared arithmetic | Implemented in [#5](https://github.com/ARPM01/cuda-wbf/pull/5), [#6](https://github.com/ARPM01/cuda-wbf/pull/6), and [#7](https://github.com/ARPM01/cuda-wbf/pull/7) and merged into `main` | GPU fixture parity and Compute Sanitizer passed locally |
 | 3. Real-data verification and comparisons | Reproducible COCO ingestion, evaluation, and NMS baselines | Validated locally and open for review in #10, #11, and #12 | Parity and COCO AP agreement passed on all 5,000 images. [Validation report](docs/COCO_VALIDATION.md) |
-| 4. Performance study on SHARC | Reproducible latency measurements, profiling, and a results report | Planned; follows milestone 3 | Publish measurements only after parity passes |
+| 4. Performance study on SHARC | Reproducible latency measurements, profiling, and a results report | Open in #13–#16 | Full-data parity, timing matrix, and representative profiles |
 
 ## Milestone 1: Build and CPU correctness
 
@@ -83,21 +83,21 @@ The command checks every annotation image and writes `quality.json` and `metadat
 
 ## Milestone 4: Performance study on SHARC
 
-| Planned PR | Branch → base | Scope | Validation |
+| PR | Branch → base | Scope | Validation |
 | --- | --- | --- | --- |
-| M4.1 — Preflight and SHARC bring-up | `stack/bench-01-preflight` → `main` | Implement `preflight`; record GPU/driver/toolchain/dependency details; confirm site scheduler, partition, modules, and a one-GPU allocation; document offline staging when needed | Confirm both GPU backends load and rerun fixture/real-data gates in the target environment |
-| M4.2 — Workloads and timing | `stack/bench-02-timing` → `stack/bench-01-preflight` | Implement deterministic real-data quartile selection and seed-42 synthetic cases; run all methods on identical batches; measure host-to-host latency and separately time resident CUDA kernels using events on the execution stream | Check batch selection and timing boundaries; exclude context setup, reusable allocation, file I/O, and evaluation; record actual transfer bytes |
-| M4.3 — Runner and reports | `stack/bench-03-reporting` → `stack/bench-02-timing` | Complete `run`; save `timings.csv`, `metadata.json`, `quality.json`, and `summary.md`; report p50/p95, images per second, Python-relative speedups, and crossover workloads | Validate report calculations and metadata against raw samples; prevent publishing performance results before parity passes |
-| M4.4 — Measured results and profiling | `stack/bench-04-results` → `stack/bench-03-reporting` | Execute the full study on one SHARC GPU; profile representative light/heavy cases; commit the reproducible report and instructions for locating run artifacts | Review parity evidence, raw-sample provenance, transfer costs, and the resulting speedup/crossover conclusions |
+| [#13 — Preflight and SHARC bring-up](https://github.com/ARPM01/cuda-wbf/pull/13) | `stack/bench-01-preflight` → `stack/data-03-baselines` | Check CUDA backends and record the device, toolchain, dependencies, and CPU affinity. Document allocation and offline setup. | Successful A100 preflight on SHARC |
+| [#14 — Workloads and timing](https://github.com/ARPM01/cuda-wbf/pull/14) | `stack/bench-02-timing` → `stack/bench-01-preflight` | Select real-data quartile batches and seed-42 synthetic cases. Measure host-to-host latency and resident CUDA kernels. | Check deterministic batches, timing boundaries, and actual transfers |
+| [#15 — Runner and reports](https://github.com/ARPM01/cuda-wbf/pull/15) | `stack/bench-03-reporting` → `stack/bench-02-timing` | Run fixture and full-data verification before timing. Publish sample CSV, metadata, quality, and summary. | Check report calculations and artifact publication |
+| [#16 — Measured results and profiling](https://github.com/ARPM01/cuda-wbf/pull/16) | `stack/bench-04-results` → `stack/bench-03-reporting` | Execute the full study on one SHARC A100 and capture light and heavy resident-kernel profiles. | Review parity evidence, raw-sample provenance, transfers, and crossovers |
 
 Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per case. The synthetic matrix uses **128, 512, and 2,048 boxes per image**, three equally weighted sources, one versus 16 classes, and overlapping versus disjoint boxes. Pin the Python reference to one worker.
 
-**Gate:** publish performance only after correctness and quality gates pass. Distinguish host-to-host latency from kernel-only samples and include transfer costs. A result showing no host-to-host CUDA speedup still satisfies the measurement objective.
+See the [SHARC benchmark guide](docs/SHARC_BENCHMARK.md) for setup, the full study command, and profiling. The runner publishes performance after correctness and quality gates pass.
 
 ## Working with the stacks
 
 1. Keep each PR focused on the row above and include its own validation evidence.
-2. Base the first PR of each milestone on current `main`; base later PRs on their immediate predecessor.
+2. Base each PR on its immediate predecessor. Retarget the bottom open PR to `main` after its dependency merges.
 3. Review and merge in dependency order.
 4. After a parent merges, retarget its child to `main` and update the remaining stack. If the parent was squash-merged or rebased, rebase descendants so their diffs contain only their own changes. Use force-with-lease if rewritten branches must be published.
 5. Update this README when PRs open or merge, and attach gate evidence before moving to the next milestone.
@@ -106,7 +106,7 @@ Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per
 
 Start with the [implementation plan](IMPLEMENTATION_PLAN.md). It defines the reference behavior, the two CUDA kernels, the SHARC bring-up sequence, and the COCO benchmark protocol. The plan includes a CPU-only build for development on machines without CUDA.
 
-The implementation provides a C++17 fusion backend, two optional CUDA kernels, and a COCO quality verifier. The performance runner is pending.
+The implementation provides a C++17 fusion backend, two optional CUDA kernels, a COCO quality verifier, and a benchmark runner.
 
 Install conda (Miniconda or Miniforge) and a C++17 compiler such as GCC or Clang. From the repository root, create and activate the Python 3.11 environment:
 
@@ -159,7 +159,7 @@ WBF_TEST_CUDA=1 python -m pytest -q
 
 Use an explicit architecture, such as `80` for A100, when compiling without a visible GPU. Select one GPU before starting Python with `CUDA_VISIBLE_DEVICES`. Call the same `fuse` API with `backend="cuda_groups"` or `backend="cuda_coop"`. The first assigns one thread per image/class group; the second assigns a 128-thread block per group to search representatives cooperatively. Both preserve sequential candidate processing and share the same workspace and arithmetic. The API keeps one reusable workspace per Python thread and checks device availability on the first nonempty CUDA call. Empty results require no kernel launch. See [CUDA runtime design](docs/CUDA_RUNTIME.md) for the shared layout and resident execution interface.
 
-`verify --cpu-only` runs without COCO data or a GPU when invoked without asset arguments. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. In a CUDA build, `python -m cuda_wbf.bench verify` checks the CPU backend and both CUDA kernels and records the selected device. Add `--fixtures-only` to omit randomized cases. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, workspace concurrency, and the installed CLI. The `preflight` and performance `run` commands remain in Milestone 4.
+`verify --cpu-only` runs without COCO data or a GPU when invoked without asset arguments. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. In a CUDA build, `python -m cuda_wbf.bench verify` checks the CPU backend and both CUDA kernels and records the selected device. Add `--fixtures-only` to omit randomized cases. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, workspace concurrency, and the installed CLI.
 
 Run the GPU correctness and sanitizer checks from the repository root, after selecting one GPU and staging the CUDA package on `PYTHONPATH`:
 
