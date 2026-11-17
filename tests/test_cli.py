@@ -8,6 +8,15 @@ import pytest
 from cuda_wbf import bench, verification
 
 
+def test_cpu_preflight(capsys):
+    assert bench.main(["preflight", "--cpu-only"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "passed"
+    assert report["backends_checked"] == ["cpp"]
+    assert report["device"] is None
+    assert report["dependencies"]["ensemble-boxes"] == "1.0.9"
+
+
 def test_verify_cpu_only_from_other_directory(tmp_path):
     process = subprocess.run([sys.executable, "-m", "cuda_wbf.bench", "verify", "--cpu-only"],
                              cwd=tmp_path, env={**os.environ, "NUMBA_NUM_THREADS": "1"},
