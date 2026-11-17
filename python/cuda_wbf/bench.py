@@ -19,6 +19,9 @@ def main(argv=None):
     run.add_argument("--annotations", type=Path, required=True, help="COCO instances_val2017.json")
     run.add_argument("--output", type=Path, required=True, help="new directory for the study artifacts")
     run.add_argument("--allocation-note", help="description of the GPU assignment")
+    profile = commands.add_parser("profile", help="replay a validated workload under Nsight Systems")
+    profile.add_argument("--results", type=Path, required=True, help="completed study output directory")
+    profile.add_argument("--case", choices=("light", "heavy"), required=True)
     verify = commands.add_parser("verify", help="check native fusion against the pinned Python oracle")
     verify.add_argument("--cpu-only", action="store_true", help="verify with the CPU backend")
     verify.add_argument("--fixtures-only", action="store_true", help="run named fixtures without randomized cases")
@@ -45,6 +48,15 @@ def main(argv=None):
             print(f"Study failed: {error}", file=sys.stderr)
             return 1
         print(json.dumps(report, indent=2))
+        return 0
+    if args.command == "profile":
+        from .profiling import profile_case
+
+        try:
+            print(json.dumps(profile_case(args.results, args.case), indent=2))
+        except (ValueError, RuntimeError, OSError) as error:
+            print(f"Profiling failed: {error}", file=sys.stderr)
+            return 1
         return 0
     if (args.predictions is None) != (args.annotations is None):
         verify.error("--predictions and --annotations must be supplied together")

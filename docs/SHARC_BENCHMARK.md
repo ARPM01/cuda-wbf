@@ -33,3 +33,17 @@ Use a new output directory each time. The command runs fixture and full-data par
 The real cases use equal-rank detection-count quartiles and up to four evenly spaced complete batches per quartile and batch size. The synthetic matrix uses seed 42 and crosses three detection counts, two class counts, two overlap conditions, and three batch sizes. Each method cycles through the same batches for five warmups and 30 samples after setup.
 
 Host-to-host timing starts with in-memory detections and ends with host-ready outputs. Each batch shape is exercised before warmup to initialize contexts and reserve reusable device buffers. Kernel-only samples bracket the resident kernel with CUDA events on its execution stream. The buffer resets precede the start event. The raw CSV records input and output counts and actual host transfers. For TorchVision the download consists of the selected indices and the host gathers boxes and scores from its original arrays.
+
+## Representative kernel profiles
+
+Run the profiler after the main study has finished. Use the same CUDA build and device. The light case is one image with 128 overlapping boxes over 16 classes. The heavy case is a batch of 32 images with 2,048 disjoint boxes per image in one class. Each capture contains 30 resident launches per WBF kernel, with output resets and the final readback visible in the trace.
+
+```bash
+for case in light heavy; do
+  nsys profile --trace=cuda,nvtx --sample=none --cpuctxsw=none \
+    --capture-range=cudaProfilerApi --capture-range-end=stop \
+    --output "runs/sharc/profile-${case}" \
+    python -m cuda_wbf.bench profile --results runs/sharc --case "$case"
+  nsys stats --report cuda_gpu_kern_sum "runs/sharc/profile-${case}.nsys-rep"
+done
+```

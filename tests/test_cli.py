@@ -17,6 +17,13 @@ def test_cpu_preflight(capsys):
     assert report["dependencies"]["ensemble-boxes"] == "1.0.9"
 
 
+def test_profile_requires_completed_study(tmp_path, capsys):
+    (tmp_path / "quality.json").write_text('{"status": "passed", "images": 2}')
+    (tmp_path / "metadata.json").write_text("{}")
+    assert bench.main(["profile", "--results", str(tmp_path), "--case", "light"]) == 1
+    assert "requires a passing full COCO study" in capsys.readouterr().err
+
+
 def test_verify_cpu_only_from_other_directory(tmp_path):
     process = subprocess.run([sys.executable, "-m", "cuda_wbf.bench", "verify", "--cpu-only"],
                              cwd=tmp_path, env={**os.environ, "NUMBA_NUM_THREADS": "1"},
