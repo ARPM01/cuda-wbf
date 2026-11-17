@@ -79,12 +79,23 @@ def _verify_wbf(data, backends):
     return outputs, errors
 
 
-def verify_coco(predictions, annotations, fixture_report):
+def verify_coco(predictions, annotations, fixture_report, *, baselines=False):
     with redirect_stdout(sys.stderr):
         reports = fixture_report.get("backends", [fixture_report])
         backends = [report["backend"] for report in reports]
         device = fixture_report.get("device")
+        methods = {}
         dependencies = dict(reports[0]["dependencies"])
+        settings = {}
+        if baselines:
+            from . import baselines as nms
+
+            methods.update(cpu_hard_nms=nms.cpu_hard_nms, cpu_soft_nms=nms.cpu_soft_nms)
+            settings = {"raw_score_floor": SCORE_FLOOR, "hard_iou_thr": nms.NMS_IOU,
+                        "soft_sigma": nms.SOFT_NMS_SIGMA, "soft_score_floor": nms.SOFT_NMS_FLOOR}
+            if device is not None:
+                methods["torchvision_cuda_nms"] = nms.torchvision_cuda_nms(device["device"])
+                dependencies.update(torch=version("torch"), torchvision=version("torchvision"))
 
         print("Loading COCO annotations and predictions", file=sys.stderr)
         data = load_coco_data(predictions, annotations)
@@ -102,12 +113,16 @@ def verify_coco(predictions, annotations, fixture_report):
                     absolute_ap_difference=ap_diff, max_coordinate_error=errors[name][0],
                     max_score_error=errors[name][1],
                 )
+        for name, run in methods.items():
+            print(f"Evaluating {name}", file=sys.stderr)
+            results = (run(image, data.weights) for image in data.images)
+            quality[name] = {"metrics": evaluator.evaluate(results), "images": len(data.images)}
 
     build = reports[0]
     metadata = {
         **data.provenance, "dependencies": {**dependencies, "pycocotools": version("pycocotools")},
         "python": build["python"], "platform": build["platform"], "build": build["build"],
-        "device": device, "wbf_backends": backends, "wbf_batch_size": BATCH_SIZE,
+        "device": device, "nms": settings, "wbf_backends": backends, "wbf_batch_size": BATCH_SIZE,
     }
     report = {
         "status": "passed", "images": len(data.images),
