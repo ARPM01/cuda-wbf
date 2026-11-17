@@ -140,6 +140,7 @@ PYBIND11_MODULE(_native, module) {
         }, py::arg("candidates").noconvert(), py::arg("offsets").noconvert(),
            py::arg("sources"), py::arg("weight_sum"), py::arg("iou_thr"))
         .def("launch", &wbf::CudaWorkspace::launch, py::arg("backend"), py::call_guard<py::gil_scoped_release>())
+        .def("time_kernel", &wbf::CudaWorkspace::time_kernel, py::arg("backend"), py::call_guard<py::gil_scoped_release>())
         .def("download", [](wbf::CudaWorkspace& workspace) {
             wbf::Result result;
             { py::gil_scoped_release release; result = workspace.download(); }

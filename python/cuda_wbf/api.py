@@ -2,6 +2,7 @@
 
 import numpy as np
 import threading
+from typing import NamedTuple
 from ensemble_boxes.ensemble_boxes_wbf import prefilter_boxes
 
 from . import _native
@@ -92,6 +93,31 @@ def fuse(images, weights, *, backend, iou_thr=0.7, skip_box_thr=0.001):
         raise ValueError("backend must be 'cpp', 'cuda_groups', or 'cuda_coop'")
     if backend not in _native.available_backends():
         raise RuntimeError(f"{backend} is unavailable in this build. Use backend='cpp' or install a CUDA build with this backend enabled.")
+    packed = _prepare(images, weights, iou_thr, skip_box_thr)
+    if not len(packed.candidates):
+        return [_empty() for _ in range(len(packed.image_groups) - 1)]
+    if backend == "cpp":
+        values, output_offsets = _native.fuse_groups(*packed.native_args)
+    else:
+        values, output_offsets = _cuda_workspace().fuse(*packed.native_args, backend)
+    return _unpack(packed, values, output_offsets)
+
+
+class _PackedBatch(NamedTuple):
+    candidates: np.ndarray
+    offsets: np.ndarray
+    sources: int
+    weight_sum: float
+    iou_thr: float
+    group_labels: list
+    image_groups: list
+
+    @property
+    def native_args(self):
+        return self[:5]
+
+
+def _prepare(images, weights, iou_thr, skip_box_thr):
     images, weights, weight_sum, iou_thr, skip_box_thr = _validate(images, weights, iou_thr, skip_box_thr)
     # Flatten the nonempty (image, class) groups into one array for C++.
     # Each pair of offsets delimits a slice of candidate rows. For example,
@@ -113,19 +139,18 @@ def fuse(images, weights, *, backend, iou_thr=0.7, skip_box_thr=0.001):
             offsets.append(offsets[-1] + len(candidates))
             group_labels.append(label)
         image_groups.append(len(group_labels))
-    if not packed:
-        return [_empty() for _ in images]
-    candidates = np.ascontiguousarray(np.concatenate(packed), dtype=np.float64)
+    candidates = (np.ascontiguousarray(np.concatenate(packed), dtype=np.float64)
+                  if packed else np.empty((0, 5), dtype=np.float64))
     slices = np.asarray(offsets, np.int64)
-    if backend == "cpp":
-        values, output_offsets = _native.fuse_groups(candidates, slices, len(weights), weight_sum, iou_thr)
-    else:
-        values, output_offsets = _cuda_workspace().fuse(candidates, slices, len(weights), weight_sum, iou_thr, backend)
+    return _PackedBatch(candidates, slices, len(weights), weight_sum, iou_thr, group_labels, image_groups)
+
+
+def _unpack(packed, values, output_offsets):
     # A group can return fewer rows after fusion. The new offsets tell us how
     # many times to repeat its class label and where each image's output ends.
-    labels = np.repeat(np.asarray(group_labels, np.int64), np.diff(output_offsets))
+    labels = np.repeat(np.asarray(packed.group_labels, np.int64), np.diff(output_offsets))
     results = []
-    for first, last in zip(image_groups[:-1], image_groups[1:]):
+    for first, last in zip(packed.image_groups[:-1], packed.image_groups[1:]):
         start, end = output_offsets[first], output_offsets[last]
         # Before the final score sort, rows are in class order, then cluster
         # creation order. Starting from that order matches the reference on ties.
