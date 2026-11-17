@@ -88,6 +88,28 @@ def randomized_cases(count=120, seed=42):
         yield Case(f"random_{seed}_{case_index}", images, weights, iou_thr=[0, 0.3, 0.7, 1][case_index % 4])
 
 
+def oracle(image, weights, iou_thr, skip_box_thr):
+    return weighted_boxes_fusion(
+        *zip(*image), weights=np.asarray(weights, np.float64),
+        iou_thr=iou_thr, skip_box_thr=skip_box_thr, conf_type="avg", allows_overflow=False,
+    )
+
+
+def compare_image(result, expected, context):
+    for output, reference in zip(result, expected):
+        if output.shape != reference.shape:
+            raise AssertionError(f"{context}: output shape {output.shape} != {reference.shape}")
+    np.testing.assert_array_equal(result[2], expected[2], err_msg=context)
+    for output, reference in zip(result[:2], expected[:2]):
+        np.testing.assert_allclose(output, reference, atol=ATOL, rtol=RTOL, err_msg=context)
+    if not (result[0].dtype == result[1].dtype == np.float64 and result[2].dtype == np.int64):
+        raise AssertionError(f"{context}: incorrect output dtypes")
+    if not (np.diff(result[1]) <= 0).all():
+        raise AssertionError(f"{context}: outputs are not ordered by descending score")
+    return tuple(float(np.abs(output - reference).max(initial=0))
+                 for output, reference in zip(result[:2], expected[:2]))
+
+
 def check_case(case, backend="cpp"):
     actual = fuse(case.images, case.weights, backend=backend,
                   iou_thr=case.iou_thr, skip_box_thr=case.skip_box_thr)
@@ -95,24 +117,10 @@ def check_case(case, backend="cpp"):
         raise AssertionError(f"{case.name}: incorrect number of output images")
     max_box_error = max_score_error = 0.0
     for image_index, (image, result) in enumerate(zip(case.images, actual)):
-        expected = weighted_boxes_fusion(
-            *zip(*image), weights=np.asarray(case.weights, np.float64),
-            iou_thr=case.iou_thr, skip_box_thr=case.skip_box_thr,
-            conf_type="avg", allows_overflow=False,
-        )
-        context = f"{case.name}, image {image_index}"
-        for output, reference in zip(result, expected):
-            if output.shape != reference.shape:
-                raise AssertionError(f"{context}: output shape {output.shape} != {reference.shape}")
-        np.testing.assert_array_equal(result[2], expected[2], err_msg=context)
-        for output, reference in zip(result[:2], expected[:2]):
-            np.testing.assert_allclose(output, reference, atol=ATOL, rtol=RTOL, err_msg=context)
-        if not (result[0].dtype == result[1].dtype == np.float64 and result[2].dtype == np.int64):
-            raise AssertionError(f"{context}: incorrect output dtypes")
-        if not (np.diff(result[1]) <= 0).all():
-            raise AssertionError(f"{context}: outputs are not ordered by descending score")
-        max_box_error = max(max_box_error, float(np.abs(result[0] - expected[0]).max(initial=0)))
-        max_score_error = max(max_score_error, float(np.abs(result[1] - expected[1]).max(initial=0)))
+        expected = oracle(image, case.weights, case.iou_thr, case.skip_box_thr)
+        box_error, score_error = compare_image(result, expected, f"{case.name}, image {image_index}")
+        max_box_error = max(max_box_error, box_error)
+        max_score_error = max(max_score_error, score_error)
     return max_box_error, max_score_error
 
 
