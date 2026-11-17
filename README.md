@@ -139,6 +139,19 @@ WBF_TEST_CUDA=1 python -m pytest -q
 
 Use an explicit architecture, such as `80` for A100, when compiling without a visible GPU. Select one GPU before starting Python with `CUDA_VISIBLE_DEVICES`. Call the same `fuse` API with `backend="cuda_groups"` or `backend="cuda_coop"`. The first assigns one thread per image/class group; the second assigns a 128-thread block per group to search representatives cooperatively. Both preserve sequential candidate processing and share the same workspace and arithmetic. The API keeps one reusable workspace per Python thread and checks device availability on the first nonempty CUDA call. Empty results require no kernel launch. See [CUDA runtime design](docs/CUDA_RUNTIME.md) for the shared layout and resident execution interface.
 
-`verify --cpu-only` requires no COCO data or GPU. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, and the installed CLI. The full data loader, CUDA verification, `preflight`, and performance `run` commands remain later milestones.
+`verify --cpu-only` requires no COCO data or GPU. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. In a CUDA build, `python -m cuda_wbf.bench verify` checks the CPU backend and both CUDA kernels and records the selected device. Add `--fixtures-only` to omit randomized cases. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, workspace concurrency, and the installed CLI. The full data loader, `preflight`, and performance `run` commands remain later milestones.
+
+Run the GPU correctness and sanitizer checks from the repository root, after selecting one GPU and staging the CUDA package on `PYTHONPATH`:
+
+```bash
+bash scripts/check_cuda.sh test
+bash scripts/check_cuda.sh memcheck
+bash scripts/check_cuda.sh synccheck
+bash scripts/check_cuda.sh racecheck
+```
+
+Set `WBF_PYTHON` if the interpreter is not named `python`. Memcheck and synccheck cover named fixtures and GPU safety tests, including child verification processes. The additional racecheck pass excludes the Python thread-lifecycle and CLI subprocess tests because the tested toolchain stalls in thread-local teardown. All tool errors return a nonzero status. Logs are written under `build/cuda/sanitizer`. The full test run additionally covers all randomized cases.
 
 See [CPU validation results](docs/CPU_VALIDATION.md) for the tests run on the development machine and sanitizer reproduction commands.
+
+See [CUDA validation results](docs/CUDA_VALIDATION.md) for both kernels' parity, installed-wheel checks, and Compute Sanitizer results.

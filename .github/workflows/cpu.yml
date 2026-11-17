@@ -2,7 +2,7 @@ name: CPU correctness
 
 on:
   push:
-    branches: [main, 'stack/cpu-*']
+    branches: [main, 'stack/cpu-*', 'stack/cuda-*']
   pull_request:
 
 jobs:
@@ -22,6 +22,8 @@ jobs:
         run: python -m cuda_wbf.bench verify --cpu-only
       - name: Test installed package
         run: python -m pytest -q
+      - name: Check GPU validation script syntax
+        run: bash -n scripts/check_cuda.sh
       - name: Verify CMake prefix installation
         shell: bash
         run: |

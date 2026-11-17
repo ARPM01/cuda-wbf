@@ -7,7 +7,7 @@ import platform
 import numpy as np
 from ensemble_boxes import weighted_boxes_fusion
 
-from . import build_info, fuse
+from . import _native, available_backends, build_info, fuse
 
 ATOL = 1e-6
 RTOL = 1e-5
@@ -116,15 +116,20 @@ def check_case(case, backend="cpp"):
     return max_box_error, max_score_error
 
 
-def verify_cpu():
+def _dependencies():
     dependencies = {name: version(name) for name in PINS}
     if dependencies != PINS:
         raise RuntimeError(f"Oracle version mismatch: expected {PINS}, installed {dependencies}")
+    return dependencies
+
+
+def _verify_backend(backend, fixtures_only=False):
+    dependencies = _dependencies()
     fixtures = fixture_cases()
-    random_cases = list(randomized_cases())
-    errors = [check_case(case) for case in fixtures + random_cases]
+    random_cases = [] if fixtures_only else list(randomized_cases())
+    errors = [check_case(case, backend=backend) for case in fixtures + random_cases]
     return {
-        "status": "passed", "backend": "cpp", "fixture_cases": len(fixtures),
+        "status": "passed", "backend": backend, "fixture_cases": len(fixtures),
         "randomized_cases": len(random_cases), "seed": 42,
         "images": sum(len(case.images) for case in fixtures + random_cases),
         "atol": ATOL, "rtol": RTOL,
@@ -133,3 +138,17 @@ def verify_cpu():
         "python": platform.python_version(), "platform": platform.platform(),
         "dependencies": dependencies, "build": build_info(),
     }
+
+
+def verify_cpu(fixtures_only=False):
+    return _verify_backend("cpp", fixtures_only)
+
+
+def verify_cuda(fixtures_only=False):
+    _dependencies()
+    required = ("cpp", "cuda_groups", "cuda_coop")
+    if any(backend not in available_backends() for backend in required):
+        raise RuntimeError("GPU verification requires a CUDA build with both backends; use verify --cpu-only for a CPU build")
+    device = _native.cuda_device_info()
+    reports = [_verify_backend(backend, fixtures_only) for backend in required]
+    return {"status": "passed", "device": device, "backends": reports}

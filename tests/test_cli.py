@@ -20,11 +20,20 @@ def test_verify_cpu_only_from_other_directory(tmp_path):
     assert report["dependencies"]["ensemble-boxes"] == "1.0.9"
 
 
-def test_cli_requires_explicit_cpu_mode():
+def test_cli_default_verification_requires_available_cuda():
     process = subprocess.run([sys.executable, "-m", "cuda_wbf.bench", "verify"],
+                             env={**os.environ, "CUDA_VISIBLE_DEVICES": ""}, text=True, capture_output=True)
+    assert process.returncode == 1
+    assert "Verification failed" in process.stderr
+
+
+def test_cli_named_cpu_fixtures_only():
+    process = subprocess.run([sys.executable, "-m", "cuda_wbf.bench", "verify", "--cpu-only", "--fixtures-only"],
                              text=True, capture_output=True)
-    assert process.returncode == 2
-    assert "--cpu-only" in process.stderr
+    assert process.returncode == 0, process.stderr
+    report = json.loads(process.stdout)
+    assert report["fixture_cases"] == 20
+    assert report["randomized_cases"] == 0
 
 
 def test_verification_rejects_wrong_oracle_version(monkeypatch):

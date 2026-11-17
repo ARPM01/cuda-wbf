@@ -16,6 +16,13 @@ struct WorkspaceStats {
     int device;
 };
 
+struct DeviceInfo {
+    std::string name;
+    int device, major, minor, runtime_version, driver_version;
+};
+
+DeviceInfo cuda_device_info();
+
 // Captures the current CUDA device at construction and owns a stream and
 // reusable device buffers on it. Each call locks this workspace, and separate
 // workspaces can run concurrently.
