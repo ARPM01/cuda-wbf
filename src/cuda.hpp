@@ -43,6 +43,9 @@ public:
     // stream. A resident upload must precede the first launch.
     void launch(const std::string& backend);
 
+    // Time a resident launch on the execution stream after output resets.
+    float time_kernel(const std::string& backend);
+
     // Wait for the most recent launch and return compact rows with cumulative
     // group offsets. Turn a kernel arithmetic failure into an exception.
     Result download();
