@@ -1,0 +1,77 @@
+import os
+import csv
+import json
+from types import SimpleNamespace
+
+import numpy as np
+import pytest
+
+from cuda_wbf import _native
+from cuda_wbf.reporting import summarize, write_results
+from cuda_wbf.timing import HOST, KERNEL, host_methods, measure_case
+from cuda_wbf.verification import source
+from cuda_wbf.workloads import real_workloads, synthetic_workload, synthetic_workloads
+
+
+def test_real_batch_selection_respects_rank_ties_and_complete_batches():
+    ids = list(range(40, 0, -1))
+    # The two eligibility counts create ties resolved by image ID.
+    images = [[source([[0, 0, 1, 1]], [0.001 if image_id > 20 else 0.0005], [1], np.float32)] for image_id in ids]
+    data = SimpleNamespace(image_ids=ids, images=images, weights=np.ones(1))
+    cases = list(real_workloads(data, batch_sizes=(2, 32)))
+    assert [case.name for case in cases] == ["real-q1-b2", "real-q2-b2", "real-q3-b2", "real-q4-b2"]
+    assert [batch.image_ids for batch in cases[0].batches] == [(1, 2), (3, 4), (5, 6), (9, 10)]
+    assert [batch.image_ids for batch in cases[-1].batches] == [(31, 32), (33, 34), (35, 36), (39, 40)]
+    assert all(batch.eligible_boxes == 2 for batch in cases[-1].batches)
+
+
+def test_synthetic_matrix_and_batch_prefix():
+    cases = list(synthetic_workloads())
+    assert len(cases) == len({case.name for case in cases}) == 36
+    small = synthetic_workload(128, 16, "disjoint", 1)
+    large = synthetic_workload(128, 16, "disjoint", 8)
+    for source_a, source_b in zip(small.batches[0].images[0], large.batches[0].images[0], strict=True):
+        for array_a, array_b in zip(source_a, source_b, strict=True):
+            np.testing.assert_array_equal(array_a, array_b)
+    assert large.batches[0].input_boxes == 8 * 128
+
+
+def test_report_percentiles_speedup_and_artifacts(tmp_path):
+    rows = [
+        {"workload": "case", "backend": backend, "boundary": boundary, "batch_size": 8,
+         "latency_ms": value, "upload_bytes": 0, "download_bytes": 0}
+        for backend, boundary, values in (
+            ("python", HOST, [10., 20.]), ("cuda_groups", HOST, [4., 6.]),
+            ("cuda_groups", KERNEL, [1., 3.]),
+        )
+        for value in values
+    ]
+    python, cuda, kernel = summarize(rows)
+    assert python["p50_ms"] == 15 and python["p95_ms"] == 19.5
+    assert cuda["speedup"] == 3 and cuda["images_per_s"] == 1600
+    assert kernel["speedup"] is None
+    output = tmp_path / "study"
+    quality = {"images": 5000, "methods": {}}
+    write_results(output, rows, {"commit": "example"}, quality)
+    assert "case` (3.000×)" in (output / "summary.md").read_text()
+    assert json.loads((output / "quality.json").read_text()) == quality
+    with (output / "timings.csv").open() as stream:
+        assert len(list(csv.DictReader(stream))) == len(rows)
+    with pytest.raises(FileExistsError):
+        write_results(output, rows, {"commit": "different"}, quality)
+    assert json.loads((output / "metadata.json").read_text())["commit"] == "example"
+
+
+@pytest.mark.cuda
+@pytest.mark.skipif(os.getenv("WBF_TEST_TORCHVISION") != "1", reason="requires the CUDA TorchVision benchmark extra")
+def test_cuda_timing_boundaries_and_transfer_bytes():
+    case = synthetic_workload(128, 16, "disjoint", 1)
+    samples = list(measure_case(case, host_methods(_native.cuda_device_info()["device"]), warmups=1, samples=2))
+    assert len(samples) == 16
+    assert all(row["output_boxes"] == 128 and row["latency_ms"] > 0 for row in samples)
+    cuda = next(row for row in samples if row["backend"] == "cuda_coop" and row["boundary"] == HOST)
+    assert cuda["upload_bytes"] == 128 * 40 + 17 * 8
+    assert cuda["download_bytes"] == 128 * 40 + 16 * 8 + 4
+    torch = next(row for row in samples if row["backend"] == "torchvision_cuda_nms")
+    assert (torch["upload_bytes"], torch["download_bytes"]) == (128 * 48, 128 * 8)
+    assert all(row["upload_bytes"] == row["download_bytes"] == 0 for row in samples if row["boundary"] == KERNEL)

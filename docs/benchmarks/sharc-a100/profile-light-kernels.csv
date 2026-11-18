@@ -1,0 +1,3 @@
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+60.7,946198,30,31539.9,31520.0,31487,32095,106.0,"wbf::<unnamed>::coop_kernel(const double *, const long *, wbf::Cluster *, double *, long *, int *, unsigned long, double, double)"
+39.3,611739,30,20391.3,20384.0,20351,20960,108.5,"wbf::<unnamed>::groups_kernel(const double *, const long *, unsigned long, wbf::Cluster *, double *, long *, int *, unsigned long, double, double)"

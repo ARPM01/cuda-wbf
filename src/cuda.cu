@@ -237,6 +237,7 @@ struct CudaWorkspace::Impl {
     int device = 0;
     int max_grid_x = 0;
     cudaStream_t stream = nullptr;
+    cudaEvent_t start_event = nullptr, stop_event = nullptr;
     DeviceBuffer<double> candidates, output;
     DeviceBuffer<Cluster> clusters;
     DeviceBuffer<std::int64_t> offsets, counts;
@@ -266,6 +267,8 @@ struct CudaWorkspace::Impl {
         cudaSetDevice(device);
         if (stream) { cudaStreamSynchronize(stream); }
         candidates.reset(); output.reset(); clusters.reset(); offsets.reset(); counts.reset(); error.reset();
+        if (start_event) { cudaEventDestroy(start_event); }
+        if (stop_event) { cudaEventDestroy(stop_event); }
         if (stream) { cudaStreamDestroy(stream); }
         cudaSetDevice(previous);
     }
@@ -298,7 +301,7 @@ struct CudaWorkspace::Impl {
         uploaded = true;
     }
 
-    void launch(const std::string& backend) {
+    void launch(const std::string& backend, bool timed = false) {
         if (!uploaded) { throw std::runtime_error("Upload candidates before launching a CUDA kernel"); }
         if (backend != "cuda_groups" && backend != "cuda_coop") {
             throw std::invalid_argument("Unknown or unavailable CUDA backend: " + backend);
@@ -319,6 +322,7 @@ struct CudaWorkspace::Impl {
             check_cuda(cudaMemsetAsync(error.data, 0, sizeof(int), stream), "reset arithmetic status");
             check_cuda(cudaMemsetAsync(counts.data, 0, bytes_for(groups, sizeof(std::int64_t)), stream), "reset cluster counts");
             check_cuda(cudaMemsetAsync(output.data, 0, bytes_for(bytes_for(count, 5), sizeof(double)), stream), "clear padded output");
+            if (timed) { check_cuda(cudaEventRecord(start_event, stream), "record kernel start"); }
             if (use_groups) {
                 groups_kernel<<<static_cast<unsigned>(blocks), 128, 0, stream>>>(
                     candidates.data, offsets.data, groups, clusters.data, output.data, counts.data, error.data,
@@ -334,8 +338,21 @@ struct CudaWorkspace::Impl {
             // to surface errors that happen while the kernel is executing.
             check_cuda(cudaGetLastError(), use_groups ? "launch cuda_groups" : "launch cuda_coop");
             ++kernel_launches;
+            if (timed) { check_cuda(cudaEventRecord(stop_event, stream), "record kernel end"); }
         }
         launched = true;
+    }
+
+    float time_kernel(const std::string& backend) {
+        DeviceGuard guard(device);
+        if (!start_event) { check_cuda(cudaEventCreate(&start_event), "create kernel start event"); }
+        if (!stop_event) { check_cuda(cudaEventCreate(&stop_event), "create kernel end event"); }
+        launch(backend, true);
+        if (!groups) { return 0; }
+        check_cuda(cudaEventSynchronize(stop_event), "wait for timed kernel");
+        float elapsed = 0;
+        check_cuda(cudaEventElapsedTime(&elapsed, start_event, stop_event), "read kernel time");
+        return elapsed;
     }
 
     Result download() {
@@ -418,6 +435,11 @@ void CudaWorkspace::upload(const double* candidates, std::size_t count, const st
 void CudaWorkspace::launch(const std::string& backend) {
     std::lock_guard<std::mutex> lock(impl_->mutex);
     impl_->launch(backend);
+}
+
+float CudaWorkspace::time_kernel(const std::string& backend) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->time_kernel(backend);
 }
 
 Result CudaWorkspace::download() {

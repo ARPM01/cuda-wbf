@@ -1,12 +1,19 @@
 import hashlib
 import io
 import json
+import os
+import subprocess
+import sys
 from zipfile import ZipFile
 
 import numpy as np
 import pytest
 
+from cuda_wbf import _native
+from cuda_wbf.baselines import cpu_hard_nms, cpu_soft_nms, torchvision_cuda_nms
 from cuda_wbf.coco_data import SOURCES, load_coco_data, read_source
+from cuda_wbf.coco_quality import CocoEvaluator, detection_rows
+from cuda_wbf.verification import source
 
 HEADER = "img_id,x1,y1,x2,y2,score,label\n"
 
@@ -36,7 +43,7 @@ def assets(tmp_path):
     return predictions, annotations
 
 
-def test_pinned_loader(assets):
+def test_pinned_loader_and_conversion(assets):
     data = load_coco_data(*assets)
     assert data.image_ids == [5, 13]
     assert [item["filename"] for item in data.provenance["sources"]] == [name for name, _ in SOURCES]
@@ -49,6 +56,7 @@ def test_pinned_loader(assets):
     assert boxes.dtype == scores.dtype == np.float32
     assert scores[0] == np.float32(0.001)
     assert labels.tolist() == [7, 19]
+    assert list(detection_rows(5, data.dimensions[5], first[0]))[0]["bbox"] == [0, 10, 40, 10]
     assert first[-1][1].tolist() == [np.float32(0.6)]
     assert data.provenance["sources"][0]["rows"] == {
         "accepted": 2, "nonpositive_score": 1, "invalid_box": 1, "collapsed_after_clipping": 1,
@@ -67,3 +75,65 @@ def test_pinned_loader(assets):
 def test_invalid_csv_row_reports_location(row, message):
     with pytest.raises(ValueError, match=f"source.csv, CSV row 2: .*{message}"):
         read_source(io.StringIO(HEADER + row + "\n"), "source.csv", {5: (80, 40)}, {7})
+
+
+def test_coco_evaluation_with_no_detections(assets):
+    pytest.importorskip("pycocotools")
+    data = load_coco_data(*assets)
+    empty = [source() for _ in data.images]
+    assert CocoEvaluator(data).evaluate(empty)["AP"] == 0
+
+
+def test_data_verification_cli_from_another_directory(assets, tmp_path):
+    pytest.importorskip("pycocotools")
+    report_dir = tmp_path / "report"
+    process = subprocess.run(
+        [sys.executable, "-m", "cuda_wbf.bench", "verify", "--cpu-only", "--fixtures-only",
+         "--predictions", str(assets[0]), "--annotations", str(assets[1]),
+         "--baselines", "--output", str(report_dir)],
+        cwd=tmp_path, env={**os.environ, "NUMBA_NUM_THREADS": "1"}, text=True, capture_output=True,
+    )
+    assert process.returncode == 0, process.stderr
+    report = json.loads(process.stdout)
+    quality = report["quality"]
+    assert quality["images"] == 2
+    assert quality["methods"]["cpp"]["absolute_ap_difference"] == 0
+    assert quality["methods"]["python"]["metrics"]["AP50"] == pytest.approx(1)
+    assert set(quality["methods"]) == {"python", "cpp", "cpu_hard_nms", "cpu_soft_nms"}
+    assert json.loads((report_dir / "quality.json").read_text()) == quality
+    assert json.loads((report_dir / "metadata.json").read_text()) == report["metadata"]
+
+
+def baseline_inputs():
+    box = [0, 0, 1, 1]
+    disjoint = [0, 0, 0.25, 0.25]
+    return [
+        source([box, box, disjoint], [0.9, 0.8, 0.0009], [7, 19, 19], np.float32),
+        source([box, disjoint], [0.7, 0.001], [7, 19], np.float32),
+        source(dtype=np.float32),
+    ], [1, 3, 6]
+
+
+def assert_hard_nms(run):
+    image, weights = baseline_inputs()
+    boxes, scores, labels = run(image, weights)
+    assert sorted(labels.tolist()) == [7, 19, 19]
+    np.testing.assert_allclose(sorted(scores), [0.0003, 0.08, 0.21])
+    np.testing.assert_array_equal(boxes[scores.argmax()], [0, 0, 1, 1])
+
+
+def test_cpu_baselines_preserve_order_independence():
+    image, weights = baseline_inputs()
+    assert_hard_nms(cpu_hard_nms)
+    soft = cpu_soft_nms(image, weights)
+    # Gaussian decay excludes the overlapping, lower-scoring class-7 box.
+    assert sorted(soft[2].tolist()) == [7, 19, 19]
+    assert_hard_nms(cpu_hard_nms)
+    for actual, expected in zip(cpu_soft_nms(image, weights), soft):
+        np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.cuda
+@pytest.mark.skipif(os.getenv("WBF_TEST_TORCHVISION") != "1", reason="set WBF_TEST_TORCHVISION=1 with CUDA TorchVision")
+def test_torchvision_cuda_nms():
+    assert_hard_nms(torchvision_cuda_nms(_native.cuda_device_info()["device"]))

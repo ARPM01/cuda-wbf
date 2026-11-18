@@ -28,7 +28,8 @@ def test_many_groups_and_partial_group_grid(backend):
 
 
 @pytest.mark.parametrize("backend", BACKENDS)
-def test_alternating_group_counts_and_resident_relaunch(backend):
+@pytest.mark.parametrize("timed", [False, True])
+def test_alternating_group_counts_and_resident_relaunch(backend, timed):
     workspace = _native.CudaWorkspace()
     launches = 0
     for count, groups in [(513, 1), (257, 257), (0, 0), (7, 3), (1, 1), (0, 0)]:
@@ -37,7 +38,13 @@ def test_alternating_group_counts_and_resident_relaunch(backend):
         expected = _native.fuse_groups(rows, slices, 3, 3., 0.7)
         workspace.upload(rows, slices, 3, 3., 0.7)
         for _ in range(2):
-            workspace.launch(backend)
+            if timed:
+                elapsed = workspace.time_kernel(backend)
+                assert np.isfinite(elapsed) and elapsed >= 0
+                if not groups:
+                    assert elapsed == 0
+            else:
+                workspace.launch(backend)
             actual = workspace.download()
             for a, b in zip(actual, expected):
                 np.testing.assert_array_equal(a, b)

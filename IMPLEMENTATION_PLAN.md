@@ -42,10 +42,10 @@ Use a shared flat layout and reusable CUDA workspace with input slices, up to on
 
 ## 4. Bring up on SHARC and apply acceptance gates
 
-Implement the runner as `python -m cuda_wbf.bench` with `preflight`, `verify`, and `run` subcommands. Use the planned invocation below inside a one-GPU allocation. First create the `cuda-wbf` conda environment from `environment.yml` as described in [README.md](README.md#technical-reference). This environment supplies Python and the CPU build dependencies; the CUDA Toolkit, driver, and future benchmark dependencies require separate setup. Discover SHARC's scheduler, partition, and module settings from the site before running. Stage the conda packages, Python wheels, and data on a host with network access if compute nodes are offline. Select a compatible TorchVision CUDA build for the detected driver. Keep the run commands independent of the scheduler.
+Use `python -m cuda_wbf.bench` inside a one-GPU allocation or an authorized direct assignment. Start with the [SHARC setup guide](docs/SHARC_BENCHMARK.md), which covers the environment, CUDA build, offline staging, and profiling. The runner checks the expected backends and captures the environment in `preflight`. The `run` command loads both assets once, completes fixture parity and COCO quality evaluation, and measures the selected workload matrix. It writes the four artifacts together after successful completion. Capture the two representative workloads after the timing run with the `profile` command.
 
 ```bash
-# Planned commands once the implementation is present and dependencies are installed.
+# Run after installing the evaluation and CUDA TorchVision dependencies.
 conda activate cuda-wbf
 nvidia-smi
 nvcc --version
@@ -58,8 +58,6 @@ cmake --build build/cuda --parallel
 cmake --install build/cuda --prefix "$PWD/build/cuda/stage"
 export PYTHONPATH="$PWD/build/cuda/stage"
 python -m cuda_wbf.bench preflight
-python -m cuda_wbf.bench verify --predictions data/benchmark.zip \
-  --annotations data/instances_val2017.json
 python -m cuda_wbf.bench run --predictions data/benchmark.zip \
   --annotations data/instances_val2017.json --output runs/sharc
 ```

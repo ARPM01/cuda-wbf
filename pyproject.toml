@@ -16,6 +16,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==8.3.5", "pybind11==2.13.6", "scikit-build-core==0.11.6"]
+evaluation = ["pycocotools==2.0.11"]
+benchmark = ["torch==2.8.0", "torchvision==0.23.0"]
 
 [tool.scikit-build]
 cmake.version = ">=3.24"
