@@ -19,6 +19,11 @@ def main(argv=None):
     run.add_argument("--annotations", type=Path, required=True, help="COCO instances_val2017.json")
     run.add_argument("--output", type=Path, required=True, help="new directory for the study artifacts")
     run.add_argument("--allocation-note", help="description of the GPU assignment")
+    append = commands.add_parser("append-cpp", help="add scalar C++ timings to a completed SHARC study")
+    append.add_argument("--results", type=Path, required=True, help="completed study output directory")
+    append.add_argument("--predictions", type=Path, required=True, help="upstream benchmark.zip")
+    append.add_argument("--annotations", type=Path, required=True, help="COCO instances_val2017.json")
+    append.add_argument("--output", type=Path, required=True, help="new directory for the combined artifacts")
     profile = commands.add_parser("profile", help="replay a validated workload under Nsight Systems")
     profile.add_argument("--results", type=Path, required=True, help="completed study output directory")
     profile.add_argument("--case", choices=("light", "heavy"), required=True)
@@ -57,6 +62,16 @@ def main(argv=None):
         except (ValueError, RuntimeError, OSError) as error:
             print(f"Profiling failed: {error}", file=sys.stderr)
             return 1
+        return 0
+    if args.command == "append-cpp":
+        from .study import append_cpp
+
+        try:
+            report = append_cpp(args.results, args.predictions, args.annotations, args.output)
+        except (AssertionError, KeyError, ValueError, RuntimeError, OSError, BadZipFile) as error:
+            print(f"Scalar C++ study failed: {error}", file=sys.stderr)
+            return 1
+        print(json.dumps(report, indent=2))
         return 0
     if (args.predictions is None) != (args.annotations is None):
         verify.error("--predictions and --annotations must be supplied together")

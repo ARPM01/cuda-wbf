@@ -34,6 +34,22 @@ The real cases use equal-rank detection-count quartiles and up to four evenly sp
 
 Host-to-host timing starts with in-memory detections and ends with host-ready outputs. Each batch shape is exercised before warmup to initialize contexts and reserve reusable device buffers. Kernel-only samples bracket the resident kernel with CUDA events on its execution stream. The buffer resets precede the start event. The raw CSV records input and output counts and actual host transfers. For TorchVision the download consists of the selected indices and the host gathers boxes and scores from its original arrays.
 
+## Scalar C++ follow-up
+
+For a completed study that predates scalar C++ timings, use the original native binary, COCO assets, and CPU configuration. Pick a core available to your job. The example uses CPU 48 from the original SHARC run.
+
+```bash
+export CUDA_VISIBLE_DEVICES=
+export NUMBA_NUM_THREADS=1 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+taskset -c 48 python -m cuda_wbf.bench append-cpp \
+  --results runs/sharc \
+  --predictions data/benchmark.zip \
+  --annotations data/instances_val2017.json \
+  --output runs/sharc-with-cpp
+```
+
+The command times only the scalar C++ host-to-host path. It writes a combined timing CSV, metadata, quality results, and summary to the new directory. The metadata records the follow-up environment separately. Use the original run directory for its Nsight captures.
+
 ## Representative kernel profiles
 
 Run the profiler after the main study has finished. Use the same CUDA build and device. The light case is one image with 128 overlapping boxes over 16 classes. The heavy case is a batch of 32 images with 2,048 disjoint boxes per image in one class. Each capture contains 30 resident launches per WBF kernel, with output resets and the final readback visible in the trace.
@@ -50,9 +66,11 @@ done
 
 ## Measured results
 
-The November 18, 2026 study used one NVIDIA A100-SXM4-40GB and one AMD EPYC 7742 CPU core on SHARC under an authorized direct assignment. The study took about 4 hours 49 minutes and recorded 11,520 timing samples across 48 workloads. Both CUDA WBF backends matched Python WBF on all 5,000 COCO val2017 images, with zero observed coordinate, score, and AP difference. All WBF methods achieved 55.82% COCO AP.
+The November 18, 2026 study used one NVIDIA A100-SXM4-40GB and one AMD EPYC 7742 CPU core on SHARC under an authorized direct assignment. The initial study took about 4 hours 49 minutes and recorded 11,520 timing samples across 48 workloads. Scalar C++ WBF and both CUDA WBF backends matched Python WBF on all 5,000 COCO val2017 images, with zero observed coordinate, score, and AP difference. All WBF methods achieved 55.82% COCO AP.
 
 `cuda_coop` beat single-worker Python WBF on median host-to-host latency in all 48 workloads. On the 12 real COCO workloads, the speedup was 7.87×–15.18× across batch sizes 1, 8, and 32. `cuda_groups` beat Python in 43 of 48 workloads and 11 of 12 real workloads. Its real-data exception was at batch size 1 in the highest detection-count quartile, where median latency was 80.42 ms for `cuda_groups` and 69.63 ms for Python.
+
+The scalar C++ follow-up on November 18 used the same native binary and CPU 48 with CUDA devices hidden. It added 1,440 host-to-host samples across the same 48 workloads, bringing the combined total to 12,960 samples. Scalar C++ beat Python on median latency in all 48 workloads and was 10.38×–13.70× faster across the 12 real COCO workloads. Compared across the two sessions, scalar C++ and `cuda_coop` each had lower median latency in six of the 12 real workloads.
 
 The two Nsight Systems captures used the same native binary as the timing study and recorded 30 launches per backend. The light and heavy workloads had different kernel latency rankings.
 

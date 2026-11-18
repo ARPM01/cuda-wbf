@@ -11,14 +11,14 @@ AP and AP50 use all 5,000 images. Latency is the range of median host-to-host ti
 | Method | COCO AP | COCO AP50 | 1 image (ms) | 8 images (ms) | 32 images (ms) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Python WBF | 55.82% | 74.17% | 26.20–69.63 | 205.19–526.98 | 814.13–2,118.02 |
-| Scalar C++ WBF | 55.82% | 74.17% | — | — | — |
+| Scalar C++ WBF | 55.82% | 74.17% | 2.51–5.68 | 18.95–38.50 | 74.93–154.64 |
 | `cuda_groups` | 55.82% | 74.17% | 6.11–80.42 | 34.82–124.84 | 90.53–227.17 |
 | `cuda_coop` | 55.82% | 74.17% | 3.28–8.47 | 19.73–37.53 | 74.16–139.53 |
 | CPU hard NMS | 52.49% | 72.20% | 1.20–2.35 | 10.06–15.60 | 40.84–61.33 |
 | CPU Gaussian Soft-NMS | 52.12% | 71.34% | 20.47–58.13 | 156.30–393.84 | 618.71–1,545.51 |
 | TorchVision CUDA hard NMS | 52.49% | 72.20% | 0.71–0.91 | 6.20–7.42 | 24.62–28.44 |
 
-The SHARC study evaluated scalar C++ WBF for accuracy only. [Benchmark setup and results](docs/SHARC_BENCHMARK.md) · [Full timing report](docs/benchmarks/sharc-a100/summary.md)
+Scalar C++ timings came from a follow-up on the same CPU core and native build. Scalar C++ and `cuda_coop` each had lower median latency in six of the 12 real COCO workloads. [Benchmark setup and results](docs/SHARC_BENCHMARK.md) · [Full timing report](docs/benchmarks/sharc-a100/summary.md)
 
 ## How the CUDA backends work
 
