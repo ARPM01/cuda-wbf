@@ -15,12 +15,14 @@ WARMUPS = 5
 SAMPLES = 30
 HOST = "host_to_host"
 KERNEL = "kernel_only"
+scalar_wbf = partial(fuse, backend="cpp", iou_thr=IOU_THR, skip_box_thr=SCORE_FLOOR)
 
 
 def host_methods(device_index):
     cuda_nms = torchvision_cuda_nms(device_index)
     return {
         "python": lambda images, weights: [oracle(image, weights, IOU_THR, SCORE_FLOOR) for image in images],
+        "cpp": scalar_wbf,
         **{backend: partial(fuse, backend=backend, iou_thr=IOU_THR, skip_box_thr=SCORE_FLOOR)
            for backend in CUDA_BACKENDS},
         "cpu_hard_nms": lambda images, weights: [cpu_hard_nms(image, weights) for image in images],
@@ -55,7 +57,7 @@ def _transfer_bytes(backend, batch, output_count):
     return 0, 0
 
 
-def _samples(case, backend, run, warmups, samples):
+def measure_host(case, backend, run, warmups, samples):
     batches = case.batches
     # Warm each selected shape before either warmups or samples so reusable
     # CUDA allocations and first-use compilation occur outside measurements.
@@ -87,6 +89,10 @@ def resident_workspaces(case):
 
 def measure_case(case, methods, warmups=WARMUPS, samples=SAMPLES):
     expected = [methods["python"](batch.images, case.weights) for batch in case.batches]
+    for batch, outputs in zip(case.batches, expected, strict=True):
+        actual = methods["cpp"](batch.images, case.weights)
+        for index, (result, reference) in enumerate(zip(actual, outputs, strict=True)):
+            compare_image(result, reference, f"{case.name}, cpp, image {index}")
     workspaces = list(resident_workspaces(case))
     counts = []
     for (workspace, packed), outputs in zip(workspaces, expected, strict=True):
@@ -97,7 +103,7 @@ def measure_case(case, methods, warmups=WARMUPS, samples=SAMPLES):
             for index, (result, reference) in enumerate(zip(actual, outputs, strict=True)):
                 compare_image(result, reference, f"{case.name}, {backend}, image {index}")
     for backend, run in methods.items():
-        yield from _samples(case, backend, run, warmups, samples)
+        yield from measure_host(case, backend, run, warmups, samples)
     for backend in CUDA_BACKENDS:
         for index in range(warmups):
             workspaces[index % len(workspaces)][0].time_kernel(backend)

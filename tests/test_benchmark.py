@@ -7,8 +7,9 @@ import numpy as np
 import pytest
 
 from cuda_wbf import _native
+from cuda_wbf import study
 from cuda_wbf.reporting import summarize, write_results
-from cuda_wbf.timing import HOST, KERNEL, host_methods, measure_case
+from cuda_wbf.timing import HOST, KERNEL, host_methods, measure_case, measure_host, scalar_wbf
 from cuda_wbf.verification import source
 from cuda_wbf.workloads import real_workloads, synthetic_workload, synthetic_workloads
 
@@ -62,13 +63,59 @@ def test_report_percentiles_speedup_and_artifacts(tmp_path):
     assert json.loads((output / "metadata.json").read_text())["commit"] == "example"
 
 
+def test_append_cpp_preserves_original_rows_and_rejects_mismatched_runs(tmp_path, monkeypatch):
+    case = synthetic_workload(128, 16, "disjoint", 1)
+    archived = list(measure_host(case, "python", scalar_wbf, warmups=0, samples=2))
+    assets = {"predictions": {"sha256": "pred"}, "annotations": {"sha256": "ann"}}
+    metadata = {
+        "native_sha256": "native", "assets": assets, "wbf": {},
+        "timing": {"warmups": 0, "samples": 2, "workloads": study._workload_settings([case])},
+    }
+    metrics = {name: 0.5 for name in ("AP", "AP50", "AP_small", "AP_medium", "AP_large", "AR100")}
+    quality = {"status": "passed", "images": 5000, "methods": {"cpp": {"images": 5000, "metrics": metrics}}}
+    original, output = tmp_path / "original", tmp_path / "combined"
+    write_results(original, archived, metadata, quality)
+    provenance = {"assets": {**assets, "predictions": {"sha256": "wrong"}}, "wbf": {}}
+    monkeypatch.setattr(study, "_native_hash", lambda: "native")
+    monkeypatch.setattr(study, "preflight", lambda *, cpu_only: {"cpu_only": cpu_only})
+    monkeypatch.setattr(study, "verify_cpu", lambda: {"status": "passed"})
+    monkeypatch.setattr(study, "load_coco_data", lambda *_: SimpleNamespace(provenance=provenance))
+    monkeypatch.setattr(study, "real_workloads", lambda _: [])
+    monkeypatch.setattr(study, "synthetic_workloads", lambda: [case])
+
+    with pytest.raises(ValueError, match="predictions checksum differs"):
+        study.append_cpp(original, None, None, output)
+    assert not output.exists()
+
+    provenance["assets"] = assets
+    result = study.append_cpp(original, None, None, output)
+    assert result["samples_added"] == 2 and result["samples"] == 4
+    original_csv = (original / "timings.csv").read_bytes()
+    assert (output / "timings.csv").read_bytes().startswith(original_csv)
+    assert json.loads((output / "quality.json").read_text()) == quality
+    followup = json.loads((output / "metadata.json").read_text())["timing"]["cpp_followup"]
+    assert followup["environment"]["cpu_only"]
+    assert followup["native_sha256"] == metadata["native_sha256"]
+    with (output / "timings.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    assert [(row["backend"], row["boundary"], row["output_boxes"]) for row in rows[2:]] == [
+        ("cpp", HOST, "128"), ("cpp", HOST, "128")
+    ]
+    assert all(row["upload_bytes"] == row["download_bytes"] == "0" for row in rows[2:])
+    with pytest.raises(ValueError, match=r"already contains scalar C\+\+ timings"):
+        study.append_cpp(output, None, None, tmp_path / "duplicate")
+
+
 @pytest.mark.cuda
 @pytest.mark.skipif(os.getenv("WBF_TEST_TORCHVISION") != "1", reason="requires the CUDA TorchVision benchmark extra")
 def test_cuda_timing_boundaries_and_transfer_bytes():
     case = synthetic_workload(128, 16, "disjoint", 1)
     samples = list(measure_case(case, host_methods(_native.cuda_device_info()["device"]), warmups=1, samples=2))
-    assert len(samples) == 16
+    assert len(samples) == 18
     assert all(row["output_boxes"] == 128 and row["latency_ms"] > 0 for row in samples)
+    cpp = [row for row in samples if row["backend"] == "cpp"]
+    assert len(cpp) == 2
+    assert all(row["boundary"] == HOST and row["upload_bytes"] == row["download_bytes"] == 0 for row in cpp)
     cuda = next(row for row in samples if row["backend"] == "cuda_coop" and row["boundary"] == HOST)
     assert cuda["upload_bytes"] == 128 * 40 + 17 * 8
     assert cuda["download_bytes"] == 128 * 40 + 16 * 8 + 4
