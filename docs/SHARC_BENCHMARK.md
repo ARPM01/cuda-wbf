@@ -66,9 +66,11 @@ done
 
 ## Measured results
 
-The November 18, 2026 study used one NVIDIA A100-SXM4-40GB and one AMD EPYC 7742 CPU core on SHARC under an authorized direct assignment. The study took about 4 hours 49 minutes and recorded 11,520 timing samples across 48 workloads. Both CUDA WBF backends matched Python WBF on all 5,000 COCO val2017 images, with zero observed coordinate, score, and AP difference. All WBF methods achieved 55.82% COCO AP.
+The November 18, 2026 study used one NVIDIA A100-SXM4-40GB and one AMD EPYC 7742 CPU core on SHARC under an authorized direct assignment. The initial study took about 4 hours 49 minutes and recorded 11,520 timing samples across 48 workloads. Scalar C++ WBF and both CUDA WBF backends matched Python WBF on all 5,000 COCO val2017 images, with zero observed coordinate, score, and AP difference. All WBF methods achieved 55.82% COCO AP.
 
 `cuda_coop` beat single-worker Python WBF on median host-to-host latency in all 48 workloads. On the 12 real COCO workloads, the speedup was 7.87×–15.18× across batch sizes 1, 8, and 32. `cuda_groups` beat Python in 43 of 48 workloads and 11 of 12 real workloads. Its real-data exception was at batch size 1 in the highest detection-count quartile, where median latency was 80.42 ms for `cuda_groups` and 69.63 ms for Python.
+
+The scalar C++ follow-up on November 18 used the same native binary and CPU 48 with CUDA devices hidden. It added 1,440 host-to-host samples across the same 48 workloads, bringing the combined total to 12,960 samples. Scalar C++ beat Python on median latency in all 48 workloads and was 10.38×–13.70× faster across the 12 real COCO workloads. Compared across the two sessions, scalar C++ and `cuda_coop` each had lower median latency in six of the 12 real workloads.
 
 The two Nsight Systems captures used the same native binary as the timing study and recorded 30 launches per backend. The light and heavy workloads had different kernel latency rankings.
 

@@ -2,10 +2,13 @@
 
 Full-image WBF parity and COCO AP agreement passed on 5,000 images.
 
+Scalar C++ host-to-host timings were collected in a follow-up session.
+
 ## Host-to-host crossovers
 
-A workload crosses over when the CUDA median latency is lower than the Python WBF median.
+A workload crosses over when its median latency is lower than the Python WBF median.
 
+- **cpp** `real-q1-b1` (10.458×), `real-q1-b8` (10.826×), `real-q1-b32` (10.865×), `real-q2-b1` (10.378×), `real-q2-b8` (12.290×), `real-q2-b32` (12.003×), `real-q3-b1` (12.431×), `real-q3-b8` (13.213×), `real-q3-b32` (12.931×), `real-q4-b1` (12.262×), `real-q4-b8` (13.689×), `real-q4-b32` (13.696×), `synthetic-128-c1-overlapping-b1` (79.598×), `synthetic-128-c1-overlapping-b8` (90.993×), `synthetic-128-c1-overlapping-b32` (93.054×), `synthetic-128-c1-disjoint-b1` (8.057×), `synthetic-128-c1-disjoint-b8` (8.773×), `synthetic-128-c1-disjoint-b32` (8.821×), `synthetic-128-c16-overlapping-b1` (10.387×), `synthetic-128-c16-overlapping-b8` (11.479×), `synthetic-128-c16-overlapping-b32` (11.658×), `synthetic-128-c16-disjoint-b1` (6.338×), `synthetic-128-c16-disjoint-b8` (6.991×), `synthetic-128-c16-disjoint-b32` (7.012×), `synthetic-512-c1-overlapping-b1` (392.763×), `synthetic-512-c1-overlapping-b8` (409.462×), `synthetic-512-c1-overlapping-b32` (400.833×), `synthetic-512-c1-disjoint-b1` (10.196×), `synthetic-512-c1-disjoint-b8` (10.577×), `synthetic-512-c1-disjoint-b32` (10.480×), `synthetic-512-c16-overlapping-b1` (32.585×), `synthetic-512-c16-overlapping-b8` (34.591×), `synthetic-512-c16-overlapping-b32` (34.168×), `synthetic-512-c16-disjoint-b1` (9.825×), `synthetic-512-c16-disjoint-b8` (10.383×), `synthetic-512-c16-disjoint-b32` (10.241×), `synthetic-2048-c1-overlapping-b1` (1651.775×), `synthetic-2048-c1-overlapping-b8` (1638.323×), `synthetic-2048-c1-overlapping-b32` (1654.232×), `synthetic-2048-c1-disjoint-b1` (11.512×), `synthetic-2048-c1-disjoint-b8` (11.468×), `synthetic-2048-c1-disjoint-b32` (11.567×), `synthetic-2048-c16-overlapping-b1` (114.492×), `synthetic-2048-c16-overlapping-b8` (117.292×), `synthetic-2048-c16-overlapping-b32` (114.427×), `synthetic-2048-c16-disjoint-b1` (10.871×), `synthetic-2048-c16-disjoint-b8` (11.032×), `synthetic-2048-c16-disjoint-b32` (11.174×)
 - **cuda_groups** `real-q1-b1` (4.292×), `real-q1-b8` (5.893×), `real-q1-b32` (8.993×), `real-q2-b1` (1.515×), `real-q2-b8` (6.716×), `real-q2-b32` (8.714×), `real-q3-b1` (1.722×), `real-q3-b8` (5.209×), `real-q3-b32` (8.285×), `real-q4-b8` (4.221×), `real-q4-b32` (9.323×), `synthetic-128-c1-overlapping-b1` (48.533×), `synthetic-128-c1-overlapping-b8` (81.333×), `synthetic-128-c1-overlapping-b32` (89.452×), `synthetic-128-c1-disjoint-b8` (4.539×), `synthetic-128-c1-disjoint-b32` (6.420×), `synthetic-128-c16-overlapping-b1` (8.868×), `synthetic-128-c16-overlapping-b8` (11.061×), `synthetic-128-c16-overlapping-b32` (11.476×), `synthetic-128-c16-disjoint-b1` (5.125×), `synthetic-128-c16-disjoint-b8` (6.533×), `synthetic-128-c16-disjoint-b32` (6.935×), `synthetic-512-c1-overlapping-b1` (211.189×), `synthetic-512-c1-overlapping-b8` (365.310×), `synthetic-512-c1-overlapping-b32` (395.824×), `synthetic-512-c1-disjoint-b8` (1.978×), `synthetic-512-c1-disjoint-b32` (5.053×), `synthetic-512-c16-overlapping-b1` (29.460×), `synthetic-512-c16-overlapping-b8` (33.647×), `synthetic-512-c16-overlapping-b32` (34.321×), `synthetic-512-c16-disjoint-b1` (7.479×), `synthetic-512-c16-disjoint-b8` (9.757×), `synthetic-512-c16-disjoint-b32` (10.294×), `synthetic-2048-c1-overlapping-b1` (884.726×), `synthetic-2048-c1-overlapping-b8` (1479.819×), `synthetic-2048-c1-overlapping-b32` (1561.605×), `synthetic-2048-c1-disjoint-b32` (3.139×), `synthetic-2048-c16-overlapping-b1` (98.309×), `synthetic-2048-c16-overlapping-b8` (109.801×), `synthetic-2048-c16-overlapping-b32` (114.113×), `synthetic-2048-c16-disjoint-b1` (6.140×), `synthetic-2048-c16-disjoint-b8` (10.048×), `synthetic-2048-c16-disjoint-b32` (11.472×)
 - **cuda_coop** `real-q1-b1` (7.980×), `real-q1-b8` (10.400×), `real-q1-b32` (10.978×), `real-q2-b1` (7.871×), `real-q2-b8` (11.989×), `real-q2-b32` (12.840×), `real-q3-b1` (9.961×), `real-q3-b8` (13.580×), `real-q3-b32` (14.200×), `real-q4-b1` (8.217×), `real-q4-b8` (14.043×), `real-q4-b32` (15.180×), `synthetic-128-c1-overlapping-b1` (39.455×), `synthetic-128-c1-overlapping-b8` (77.272×), `synthetic-128-c1-overlapping-b32` (89.283×), `synthetic-128-c1-disjoint-b1` (4.419×), `synthetic-128-c1-disjoint-b8` (8.473×), `synthetic-128-c1-disjoint-b32` (9.419×), `synthetic-128-c16-overlapping-b1` (8.734×), `synthetic-128-c16-overlapping-b8` (11.004×), `synthetic-128-c16-overlapping-b32` (11.521×), `synthetic-128-c16-disjoint-b1` (5.191×), `synthetic-128-c16-disjoint-b8` (6.598×), `synthetic-128-c16-disjoint-b32` (6.922×), `synthetic-512-c1-overlapping-b1` (157.807×), `synthetic-512-c1-overlapping-b8` (345.215×), `synthetic-512-c1-overlapping-b32` (394.626×), `synthetic-512-c1-disjoint-b1` (5.905×), `synthetic-512-c1-disjoint-b8` (12.246×), `synthetic-512-c1-disjoint-b32` (13.889×), `synthetic-512-c16-overlapping-b1` (29.114×), `synthetic-512-c16-overlapping-b8` (33.851×), `synthetic-512-c16-overlapping-b32` (33.965×), `synthetic-512-c16-disjoint-b1` (8.781×), `synthetic-512-c16-disjoint-b8` (10.231×), `synthetic-512-c16-disjoint-b32` (10.426×), `synthetic-2048-c1-overlapping-b1` (745.292×), `synthetic-2048-c1-overlapping-b8` (1393.162×), `synthetic-2048-c1-overlapping-b32` (1556.624×), `synthetic-2048-c1-disjoint-b1` (7.513×), `synthetic-2048-c1-disjoint-b8` (19.390×), `synthetic-2048-c1-disjoint-b32` (23.651×), `synthetic-2048-c16-overlapping-b1` (95.413×), `synthetic-2048-c16-overlapping-b8` (110.700×), `synthetic-2048-c16-overlapping-b32` (113.641×), `synthetic-2048-c16-disjoint-b1` (10.827×), `synthetic-2048-c16-disjoint-b8` (11.650×), `synthetic-2048-c16-disjoint-b32` (11.945×)
 
@@ -16,6 +19,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | Workload | Method | Boundary | p50 ms | p95 ms | Images/s | Python speedup | Upload B | Download B |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | real-q1-b1 | python | host_to_host | 26.202391 | 36.695077 | 38.2 | 1.0000 | 0 | 0 |
+| real-q1-b1 | cpp | host_to_host | 2.505509 | 2.958319 | 399.1 | 10.4579 | 0 | 0 |
 | real-q1-b1 | cuda_groups | host_to_host | 6.105520 | 12.930538 | 163.8 | 4.2916 | 35176 | 35172 |
 | real-q1-b1 | cuda_coop | host_to_host | 3.283475 | 3.641700 | 304.6 | 7.9801 | 35176 | 35172 |
 | real-q1-b1 | cpu_hard_nms | host_to_host | 1.201432 | 1.381166 | 832.3 | 21.8093 | 0 | 0 |
@@ -24,6 +28,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q1-b1 | cuda_groups | kernel_only | 2.540032 | 8.206899 | 393.7 | — | 0 | 0 |
 | real-q1-b1 | cuda_coop | kernel_only | 0.523264 | 1.124352 | 1911.1 | — | 0 | 0 |
 | real-q1-b8 | python | host_to_host | 205.192343 | 280.180149 | 39.0 | 1.0000 | 0 | 0 |
+| real-q1-b8 | cpp | host_to_host | 18.953566 | 23.236828 | 422.1 | 10.8261 | 0 | 0 |
 | real-q1-b8 | cuda_groups | host_to_host | 34.822207 | 37.466421 | 229.7 | 5.8926 | 281200 | 281196 |
 | real-q1-b8 | cuda_coop | host_to_host | 19.729824 | 23.585161 | 405.5 | 10.4001 | 281200 | 281196 |
 | real-q1-b8 | cpu_hard_nms | host_to_host | 10.063287 | 10.968506 | 795.0 | 20.3902 | 0 | 0 |
@@ -32,6 +37,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q1-b8 | cuda_groups | kernel_only | 12.870144 | 15.084851 | 621.6 | — | 0 | 0 |
 | real-q1-b8 | cuda_coop | kernel_only | 0.998400 | 1.315840 | 8012.8 | — | 0 | 0 |
 | real-q1-b32 | python | host_to_host | 814.131797 | 1135.322491 | 39.3 | 1.0000 | 0 | 0 |
+| real-q1-b32 | cpp | host_to_host | 74.932556 | 94.153799 | 427.1 | 10.8649 | 0 | 0 |
 | real-q1-b32 | cuda_groups | host_to_host | 90.528158 | 130.226399 | 353.5 | 8.9931 | 1120496 | 1120492 |
 | real-q1-b32 | cuda_coop | host_to_host | 74.163359 | 92.340693 | 431.5 | 10.9775 | 1120496 | 1120492 |
 | real-q1-b32 | cpu_hard_nms | host_to_host | 40.844959 | 44.778561 | 783.5 | 19.9322 | 0 | 0 |
@@ -40,6 +46,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q1-b32 | cuda_groups | kernel_only | 14.064128 | 31.214131 | 2275.3 | — | 0 | 0 |
 | real-q1-b32 | cuda_coop | kernel_only | 1.332224 | 2.070477 | 24020.0 | — | 0 | 0 |
 | real-q2-b1 | python | host_to_host | 39.063460 | 52.748818 | 25.6 | 1.0000 | 0 | 0 |
+| real-q2-b1 | cpp | host_to_host | 3.764130 | 4.032169 | 265.7 | 10.3778 | 0 | 0 |
 | real-q2-b1 | cuda_groups | host_to_host | 25.784737 | 31.025538 | 38.8 | 1.5150 | 50352 | 50348 |
 | real-q2-b1 | cuda_coop | host_to_host | 4.963030 | 5.135489 | 201.5 | 7.8709 | 50352 | 50348 |
 | real-q2-b1 | cpu_hard_nms | host_to_host | 1.578078 | 1.734873 | 633.7 | 24.7538 | 0 | 0 |
@@ -48,6 +55,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q2-b1 | cuda_groups | kernel_only | 22.878208 | 27.787264 | 43.7 | — | 0 | 0 |
 | real-q2-b1 | cuda_coop | kernel_only | 1.726464 | 1.930240 | 579.2 | — | 0 | 0 |
 | real-q2-b8 | python | host_to_host | 323.863713 | 424.021105 | 24.7 | 1.0000 | 0 | 0 |
+| real-q2-b8 | cpp | host_to_host | 26.351974 | 32.142721 | 303.6 | 12.2899 | 0 | 0 |
 | real-q2-b8 | cuda_groups | host_to_host | 48.225656 | 74.486942 | 165.9 | 6.7156 | 402832 | 402828 |
 | real-q2-b8 | cuda_coop | host_to_host | 27.014413 | 32.743741 | 296.1 | 11.9886 | 402832 | 402828 |
 | real-q2-b8 | cpu_hard_nms | host_to_host | 11.711386 | 13.555142 | 683.1 | 27.6537 | 0 | 0 |
@@ -56,6 +64,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q2-b8 | cuda_groups | kernel_only | 24.569856 | 44.639795 | 325.6 | — | 0 | 0 |
 | real-q2-b8 | cuda_coop | kernel_only | 1.946624 | 2.934323 | 4109.7 | — | 0 | 0 |
 | real-q2-b32 | python | host_to_host | 1299.224363 | 1676.522441 | 24.6 | 1.0000 | 0 | 0 |
+| real-q2-b32 | cpp | host_to_host | 108.239501 | 131.733434 | 295.6 | 12.0032 | 0 | 0 |
 | real-q2-b32 | cuda_groups | host_to_host | 149.089488 | 169.773043 | 214.6 | 8.7144 | 1604952 | 1604948 |
 | real-q2-b32 | cuda_coop | host_to_host | 101.183058 | 122.142990 | 316.3 | 12.8403 | 1604952 | 1604948 |
 | real-q2-b32 | cpu_hard_nms | host_to_host | 47.012618 | 53.858434 | 680.7 | 27.6357 | 0 | 0 |
@@ -64,6 +73,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q2-b32 | cuda_groups | kernel_only | 43.843071 | 47.031858 | 729.9 | — | 0 | 0 |
 | real-q2-b32 | cuda_coop | kernel_only | 2.179584 | 2.958746 | 14681.7 | — | 0 | 0 |
 | real-q3-b1 | python | host_to_host | 57.742845 | 71.310788 | 17.3 | 1.0000 | 0 | 0 |
+| real-q3-b1 | cpp | host_to_host | 4.645204 | 5.770291 | 215.3 | 12.4306 | 0 | 0 |
 | real-q3-b1 | cuda_groups | host_to_host | 33.541094 | 80.654699 | 29.8 | 1.7216 | 58440 | 58436 |
 | real-q3-b1 | cuda_coop | host_to_host | 5.797149 | 8.559628 | 172.5 | 9.9606 | 58440 | 58436 |
 | real-q3-b1 | cpu_hard_nms | host_to_host | 1.957477 | 2.157309 | 510.9 | 29.4986 | 0 | 0 |
@@ -72,6 +82,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q3-b1 | cuda_groups | kernel_only | 29.659136 | 76.487679 | 33.7 | — | 0 | 0 |
 | real-q3-b1 | cuda_coop | kernel_only | 1.831936 | 4.305920 | 545.9 | — | 0 | 0 |
 | real-q3-b8 | python | host_to_host | 480.720492 | 510.748283 | 16.6 | 1.0000 | 0 | 0 |
+| real-q3-b8 | cpp | host_to_host | 36.381144 | 37.737541 | 219.9 | 13.2135 | 0 | 0 |
 | real-q3-b8 | cuda_groups | host_to_host | 92.291207 | 99.749597 | 86.7 | 5.2087 | 468136 | 468132 |
 | real-q3-b8 | cuda_coop | host_to_host | 35.398476 | 35.773882 | 226.0 | 13.5803 | 468136 | 468132 |
 | real-q3-b8 | cpu_hard_nms | host_to_host | 14.887123 | 15.485398 | 537.4 | 32.2910 | 0 | 0 |
@@ -80,6 +91,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q3-b8 | cuda_groups | kernel_only | 59.720705 | 66.815542 | 134.0 | — | 0 | 0 |
 | real-q3-b8 | cuda_coop | kernel_only | 2.915840 | 3.670016 | 2743.6 | — | 0 | 0 |
 | real-q3-b32 | python | host_to_host | 1881.912178 | 2013.519780 | 17.0 | 1.0000 | 0 | 0 |
+| real-q3-b32 | cpp | host_to_host | 145.532872 | 154.766351 | 219.9 | 12.9312 | 0 | 0 |
 | real-q3-b32 | cuda_groups | host_to_host | 227.143466 | 294.377201 | 140.9 | 8.2851 | 1873144 | 1873140 |
 | real-q3-b32 | cuda_coop | host_to_host | 132.527100 | 139.678911 | 241.5 | 14.2002 | 1873144 | 1873140 |
 | real-q3-b32 | cpu_hard_nms | host_to_host | 61.331541 | 62.385187 | 521.8 | 30.6842 | 0 | 0 |
@@ -88,6 +100,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q3-b32 | cuda_groups | kernel_only | 99.062786 | 167.537659 | 323.0 | — | 0 | 0 |
 | real-q3-b32 | cuda_coop | kernel_only | 4.338176 | 4.882176 | 7376.4 | — | 0 | 0 |
 | real-q4-b1 | python | host_to_host | 69.629870 | 74.158701 | 14.4 | 1.0000 | 0 | 0 |
+| real-q4-b1 | cpp | host_to_host | 5.678686 | 6.089267 | 176.1 | 12.2616 | 0 | 0 |
 | real-q4-b1 | cuda_groups | host_to_host | 80.420954 | 97.167825 | 12.4 | 0.8658 | 60176 | 60172 |
 | real-q4-b1 | cuda_coop | host_to_host | 8.474308 | 8.848503 | 118.0 | 8.2166 | 60176 | 60172 |
 | real-q4-b1 | cpu_hard_nms | host_to_host | 2.351060 | 2.454914 | 425.3 | 29.6164 | 0 | 0 |
@@ -96,6 +109,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q4-b1 | cuda_groups | kernel_only | 75.954176 | 92.766413 | 13.2 | — | 0 | 0 |
 | real-q4-b1 | cuda_coop | kernel_only | 4.176896 | 4.511744 | 239.4 | — | 0 | 0 |
 | real-q4-b8 | python | host_to_host | 526.982469 | 558.435415 | 15.2 | 1.0000 | 0 | 0 |
+| real-q4-b8 | cpp | host_to_host | 38.496011 | 44.115012 | 207.8 | 13.6893 | 0 | 0 |
 | real-q4-b8 | cuda_groups | host_to_host | 124.843152 | 203.627133 | 64.1 | 4.2212 | 481096 | 481092 |
 | real-q4-b8 | cuda_coop | host_to_host | 37.525160 | 38.867066 | 213.2 | 14.0434 | 481096 | 481092 |
 | real-q4-b8 | cpu_hard_nms | host_to_host | 15.598052 | 16.810598 | 512.9 | 33.7851 | 0 | 0 |
@@ -104,6 +118,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q4-b8 | cuda_groups | kernel_only | 91.727871 | 169.932647 | 87.2 | — | 0 | 0 |
 | real-q4-b8 | cuda_coop | kernel_only | 4.515328 | 5.121024 | 1771.7 | — | 0 | 0 |
 | real-q4-b32 | python | host_to_host | 2118.016296 | 2173.096207 | 15.1 | 1.0000 | 0 | 0 |
+| real-q4-b32 | cpp | host_to_host | 154.640467 | 224.283637 | 206.9 | 13.6964 | 0 | 0 |
 | real-q4-b32 | cuda_groups | host_to_host | 227.171819 | 304.157261 | 140.9 | 9.3234 | 1926048 | 1926044 |
 | real-q4-b32 | cuda_coop | host_to_host | 139.528540 | 226.243242 | 229.3 | 15.1798 | 1926048 | 1926044 |
 | real-q4-b32 | cpu_hard_nms | host_to_host | 60.752581 | 61.181584 | 526.7 | 34.8630 | 0 | 0 |
@@ -112,6 +127,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | real-q4-b32 | cuda_groups | kernel_only | 91.711998 | 169.911498 | 348.9 | — | 0 | 0 |
 | real-q4-b32 | cuda_coop | kernel_only | 4.614656 | 5.124096 | 6934.4 | — | 0 | 0 |
 | synthetic-128-c1-overlapping-b1 | python | host_to_host | 36.044803 | 36.372556 | 27.7 | 1.0000 | 0 | 0 |
+| synthetic-128-c1-overlapping-b1 | cpp | host_to_host | 0.452835 | 0.460108 | 2208.3 | 79.5981 | 0 | 0 |
 | synthetic-128-c1-overlapping-b1 | cuda_groups | host_to_host | 0.742691 | 0.782132 | 1346.5 | 48.5327 | 5136 | 5132 |
 | synthetic-128-c1-overlapping-b1 | cuda_coop | host_to_host | 0.913570 | 0.937878 | 1094.6 | 39.4549 | 5136 | 5132 |
 | synthetic-128-c1-overlapping-b1 | cpu_hard_nms | host_to_host | 0.141674 | 0.156157 | 7058.5 | 254.4207 | 0 | 0 |
@@ -120,6 +136,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c1-overlapping-b1 | cuda_groups | kernel_only | 0.204800 | 0.205824 | 4882.8 | — | 0 | 0 |
 | synthetic-128-c1-overlapping-b1 | cuda_coop | kernel_only | 0.370688 | 0.370688 | 2697.7 | — | 0 | 0 |
 | synthetic-128-c1-overlapping-b8 | python | host_to_host | 289.779273 | 291.499050 | 27.6 | 1.0000 | 0 | 0 |
+| synthetic-128-c1-overlapping-b8 | cpp | host_to_host | 3.184629 | 3.311478 | 2512.1 | 90.9931 | 0 | 0 |
 | synthetic-128-c1-overlapping-b8 | cuda_groups | host_to_host | 3.562876 | 3.682691 | 2245.4 | 81.3330 | 41032 | 41028 |
 | synthetic-128-c1-overlapping-b8 | cuda_coop | host_to_host | 3.750107 | 3.851962 | 2133.3 | 77.2723 | 41032 | 41028 |
 | synthetic-128-c1-overlapping-b8 | cpu_hard_nms | host_to_host | 1.128302 | 1.139045 | 7090.3 | 256.8276 | 0 | 0 |
@@ -128,6 +145,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c1-overlapping-b8 | cuda_groups | kernel_only | 0.299008 | 0.299008 | 26755.1 | — | 0 | 0 |
 | synthetic-128-c1-overlapping-b8 | cuda_coop | kernel_only | 0.477184 | 0.478208 | 16765.0 | — | 0 | 0 |
 | synthetic-128-c1-overlapping-b32 | python | host_to_host | 1156.821299 | 1163.334459 | 27.7 | 1.0000 | 0 | 0 |
+| synthetic-128-c1-overlapping-b32 | cpp | host_to_host | 12.431779 | 12.794433 | 2574.0 | 93.0536 | 0 | 0 |
 | synthetic-128-c1-overlapping-b32 | cuda_groups | host_to_host | 12.932271 | 13.196346 | 2474.4 | 89.4523 | 164104 | 164100 |
 | synthetic-128-c1-overlapping-b32 | cuda_coop | host_to_host | 12.956836 | 13.222885 | 2469.7 | 89.2827 | 164104 | 164100 |
 | synthetic-128-c1-overlapping-b32 | cpu_hard_nms | host_to_host | 4.672871 | 4.799715 | 6848.0 | 247.5611 | 0 | 0 |
@@ -136,6 +154,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c1-overlapping-b32 | cuda_groups | kernel_only | 0.432128 | 0.432128 | 74052.1 | — | 0 | 0 |
 | synthetic-128-c1-overlapping-b32 | cuda_coop | kernel_only | 0.479232 | 0.480256 | 66773.5 | — | 0 | 0 |
 | synthetic-128-c1-disjoint-b1 | python | host_to_host | 3.901543 | 4.002104 | 256.3 | 1.0000 | 0 | 0 |
+| synthetic-128-c1-disjoint-b1 | cpp | host_to_host | 0.484255 | 0.523002 | 2065.0 | 8.0568 | 0 | 0 |
 | synthetic-128-c1-disjoint-b1 | cuda_groups | host_to_host | 4.660903 | 4.692005 | 214.6 | 0.8371 | 5136 | 5132 |
 | synthetic-128-c1-disjoint-b1 | cuda_coop | host_to_host | 0.882915 | 0.930865 | 1132.6 | 4.4189 | 5136 | 5132 |
 | synthetic-128-c1-disjoint-b1 | cpu_hard_nms | host_to_host | 0.362365 | 0.402145 | 2759.6 | 10.7669 | 0 | 0 |
@@ -144,6 +163,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c1-disjoint-b1 | cuda_groups | kernel_only | 3.191296 | 3.191808 | 313.4 | — | 0 | 0 |
 | synthetic-128-c1-disjoint-b1 | cuda_coop | kernel_only | 0.331776 | 0.331776 | 3014.1 | — | 0 | 0 |
 | synthetic-128-c1-disjoint-b8 | python | host_to_host | 31.163728 | 31.485063 | 256.7 | 1.0000 | 0 | 0 |
+| synthetic-128-c1-disjoint-b8 | cpp | host_to_host | 3.552262 | 3.620206 | 2252.1 | 8.7729 | 0 | 0 |
 | synthetic-128-c1-disjoint-b8 | cuda_groups | host_to_host | 6.866224 | 6.975313 | 1165.1 | 4.5387 | 41032 | 41028 |
 | synthetic-128-c1-disjoint-b8 | cuda_coop | host_to_host | 3.678159 | 3.764891 | 2175.0 | 8.4726 | 41032 | 41028 |
 | synthetic-128-c1-disjoint-b8 | cpu_hard_nms | host_to_host | 2.933757 | 2.991789 | 2726.9 | 10.6225 | 0 | 0 |
@@ -152,6 +172,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c1-disjoint-b8 | cuda_groups | kernel_only | 3.517440 | 3.517440 | 2274.4 | — | 0 | 0 |
 | synthetic-128-c1-disjoint-b8 | cuda_coop | kernel_only | 0.332800 | 0.332800 | 24038.5 | — | 0 | 0 |
 | synthetic-128-c1-disjoint-b32 | python | host_to_host | 123.469660 | 124.321255 | 259.2 | 1.0000 | 0 | 0 |
+| synthetic-128-c1-disjoint-b32 | cpp | host_to_host | 13.996921 | 14.292895 | 2286.2 | 8.8212 | 0 | 0 |
 | synthetic-128-c1-disjoint-b32 | cuda_groups | host_to_host | 19.231355 | 19.512071 | 1663.9 | 6.4202 | 164104 | 164100 |
 | synthetic-128-c1-disjoint-b32 | cuda_coop | host_to_host | 13.108455 | 13.339169 | 2441.2 | 9.4191 | 164104 | 164100 |
 | synthetic-128-c1-disjoint-b32 | cpu_hard_nms | host_to_host | 11.663461 | 11.911758 | 2743.6 | 10.5860 | 0 | 0 |
@@ -160,6 +181,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c1-disjoint-b32 | cuda_groups | kernel_only | 5.103616 | 6.567936 | 6270.1 | — | 0 | 0 |
 | synthetic-128-c1-disjoint-b32 | cuda_coop | kernel_only | 0.333824 | 0.334848 | 95858.9 | — | 0 | 0 |
 | synthetic-128-c16-overlapping-b1 | python | host_to_host | 5.866506 | 5.969899 | 170.5 | 1.0000 | 0 | 0 |
+| synthetic-128-c16-overlapping-b1 | cpp | host_to_host | 0.564767 | 0.601501 | 1770.6 | 10.3875 | 0 | 0 |
 | synthetic-128-c16-overlapping-b1 | cuda_groups | host_to_host | 0.661519 | 0.669139 | 1511.7 | 8.8682 | 5256 | 5252 |
 | synthetic-128-c16-overlapping-b1 | cuda_coop | host_to_host | 0.671713 | 0.712091 | 1488.7 | 8.7336 | 5256 | 5252 |
 | synthetic-128-c16-overlapping-b1 | cpu_hard_nms | host_to_host | 0.319132 | 0.332770 | 3133.5 | 18.3827 | 0 | 0 |
@@ -168,6 +190,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c16-overlapping-b1 | cuda_groups | kernel_only | 0.020480 | 0.021504 | 48828.1 | — | 0 | 0 |
 | synthetic-128-c16-overlapping-b1 | cuda_coop | kernel_only | 0.029696 | 0.029696 | 33674.6 | — | 0 | 0 |
 | synthetic-128-c16-overlapping-b8 | python | host_to_host | 46.803469 | 47.238857 | 170.9 | 1.0000 | 0 | 0 |
+| synthetic-128-c16-overlapping-b8 | cpp | host_to_host | 4.077384 | 4.175789 | 1962.0 | 11.4788 | 0 | 0 |
 | synthetic-128-c16-overlapping-b8 | cuda_groups | host_to_host | 4.231365 | 4.309060 | 1890.6 | 11.0611 | 41992 | 41988 |
 | synthetic-128-c16-overlapping-b8 | cuda_coop | host_to_host | 4.253267 | 4.328714 | 1880.9 | 11.0041 | 41992 | 41988 |
 | synthetic-128-c16-overlapping-b8 | cpu_hard_nms | host_to_host | 2.590334 | 2.694768 | 3088.4 | 18.0685 | 0 | 0 |
@@ -176,6 +199,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c16-overlapping-b8 | cuda_groups | kernel_only | 0.045056 | 0.045619 | 177556.8 | — | 0 | 0 |
 | synthetic-128-c16-overlapping-b8 | cuda_coop | kernel_only | 0.037888 | 0.037888 | 211148.6 | — | 0 | 0 |
 | synthetic-128-c16-overlapping-b32 | python | host_to_host | 186.765296 | 187.775874 | 171.3 | 1.0000 | 0 | 0 |
+| synthetic-128-c16-overlapping-b32 | cpp | host_to_host | 16.020446 | 16.296545 | 1997.4 | 11.6579 | 0 | 0 |
 | synthetic-128-c16-overlapping-b32 | cuda_groups | host_to_host | 16.274033 | 16.681298 | 1966.3 | 11.4763 | 167944 | 167940 |
 | synthetic-128-c16-overlapping-b32 | cuda_coop | host_to_host | 16.211184 | 16.560782 | 1973.9 | 11.5208 | 167944 | 167940 |
 | synthetic-128-c16-overlapping-b32 | cpu_hard_nms | host_to_host | 10.424454 | 10.719320 | 3069.7 | 17.9161 | 0 | 0 |
@@ -184,6 +208,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c16-overlapping-b32 | cuda_groups | kernel_only | 0.047104 | 0.048128 | 679347.8 | — | 0 | 0 |
 | synthetic-128-c16-overlapping-b32 | cuda_coop | kernel_only | 0.038912 | 0.039936 | 822368.5 | — | 0 | 0 |
 | synthetic-128-c16-disjoint-b1 | python | host_to_host | 3.555414 | 3.657239 | 281.3 | 1.0000 | 0 | 0 |
+| synthetic-128-c16-disjoint-b1 | cpp | host_to_host | 0.560995 | 0.572793 | 1782.5 | 6.3377 | 0 | 0 |
 | synthetic-128-c16-disjoint-b1 | cuda_groups | host_to_host | 0.693704 | 0.802379 | 1441.5 | 5.1253 | 5256 | 5252 |
 | synthetic-128-c16-disjoint-b1 | cuda_coop | host_to_host | 0.684898 | 0.698490 | 1460.1 | 5.1912 | 5256 | 5252 |
 | synthetic-128-c16-disjoint-b1 | cpu_hard_nms | host_to_host | 0.400963 | 0.442768 | 2494.0 | 8.8672 | 0 | 0 |
@@ -192,6 +217,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c16-disjoint-b1 | cuda_groups | kernel_only | 0.039936 | 0.039936 | 25040.1 | — | 0 | 0 |
 | synthetic-128-c16-disjoint-b1 | cuda_coop | kernel_only | 0.033792 | 0.034816 | 29592.8 | — | 0 | 0 |
 | synthetic-128-c16-disjoint-b8 | python | host_to_host | 28.391633 | 28.989790 | 281.8 | 1.0000 | 0 | 0 |
+| synthetic-128-c16-disjoint-b8 | cpp | host_to_host | 4.061139 | 4.146583 | 1969.9 | 6.9911 | 0 | 0 |
 | synthetic-128-c16-disjoint-b8 | cuda_groups | host_to_host | 4.345923 | 4.475474 | 1840.8 | 6.5329 | 41992 | 41988 |
 | synthetic-128-c16-disjoint-b8 | cuda_coop | host_to_host | 4.302831 | 4.376111 | 1859.2 | 6.5984 | 41992 | 41988 |
 | synthetic-128-c16-disjoint-b8 | cpu_hard_nms | host_to_host | 3.210102 | 3.313835 | 2492.1 | 8.8445 | 0 | 0 |
@@ -200,6 +226,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c16-disjoint-b8 | cuda_groups | kernel_only | 0.087040 | 0.089190 | 91911.8 | — | 0 | 0 |
 | synthetic-128-c16-disjoint-b8 | cuda_coop | kernel_only | 0.034816 | 0.034816 | 229779.4 | — | 0 | 0 |
 | synthetic-128-c16-disjoint-b32 | python | host_to_host | 114.046831 | 114.707566 | 280.6 | 1.0000 | 0 | 0 |
+| synthetic-128-c16-disjoint-b32 | cpp | host_to_host | 16.265505 | 16.583551 | 1967.4 | 7.0116 | 0 | 0 |
 | synthetic-128-c16-disjoint-b32 | cuda_groups | host_to_host | 16.446166 | 16.713794 | 1945.7 | 6.9346 | 167944 | 167940 |
 | synthetic-128-c16-disjoint-b32 | cuda_coop | host_to_host | 16.474835 | 16.659823 | 1942.4 | 6.9225 | 167944 | 167940 |
 | synthetic-128-c16-disjoint-b32 | cpu_hard_nms | host_to_host | 13.051347 | 13.219521 | 2451.9 | 8.7383 | 0 | 0 |
@@ -208,6 +235,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-128-c16-disjoint-b32 | cuda_groups | kernel_only | 0.088064 | 0.089088 | 363372.1 | — | 0 | 0 |
 | synthetic-128-c16-disjoint-b32 | cuda_coop | kernel_only | 0.036864 | 0.037888 | 868055.5 | — | 0 | 0 |
 | synthetic-512-c1-overlapping-b1 | python | host_to_host | 526.491462 | 529.348057 | 1.9 | 1.0000 | 0 | 0 |
+| synthetic-512-c1-overlapping-b1 | cpp | host_to_host | 1.340481 | 1.382870 | 746.0 | 392.7631 | 0 | 0 |
 | synthetic-512-c1-overlapping-b1 | cuda_groups | host_to_host | 2.492988 | 2.587445 | 401.1 | 211.1889 | 20496 | 20492 |
 | synthetic-512-c1-overlapping-b1 | cuda_coop | host_to_host | 3.336308 | 3.411099 | 299.7 | 157.8066 | 20496 | 20492 |
 | synthetic-512-c1-overlapping-b1 | cpu_hard_nms | host_to_host | 0.218756 | 0.227979 | 4571.3 | 2406.7521 | 0 | 0 |
@@ -216,6 +244,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c1-overlapping-b1 | cuda_groups | kernel_only | 0.820224 | 0.820224 | 1219.2 | — | 0 | 0 |
 | synthetic-512-c1-overlapping-b1 | cuda_coop | kernel_only | 1.496064 | 1.497088 | 668.4 | — | 0 | 0 |
 | synthetic-512-c1-overlapping-b8 | python | host_to_host | 4218.491415 | 4231.265934 | 1.9 | 1.0000 | 0 | 0 |
+| synthetic-512-c1-overlapping-b8 | cpp | host_to_host | 10.302519 | 10.623934 | 776.5 | 409.4621 | 0 | 0 |
 | synthetic-512-c1-overlapping-b8 | cuda_groups | host_to_host | 11.547701 | 11.748770 | 692.8 | 365.3101 | 163912 | 163908 |
 | synthetic-512-c1-overlapping-b8 | cuda_coop | host_to_host | 12.219880 | 12.304558 | 654.7 | 345.2155 | 163912 | 163908 |
 | synthetic-512-c1-overlapping-b8 | cpu_hard_nms | host_to_host | 1.938027 | 2.008527 | 4127.9 | 2176.6938 | 0 | 0 |
@@ -224,6 +253,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c1-overlapping-b8 | cuda_groups | kernel_only | 1.166336 | 1.167360 | 6859.1 | — | 0 | 0 |
 | synthetic-512-c1-overlapping-b8 | cuda_coop | kernel_only | 1.889280 | 1.890304 | 4234.4 | — | 0 | 0 |
 | synthetic-512-c1-overlapping-b32 | python | host_to_host | 16792.372052 | 16879.778408 | 1.9 | 1.0000 | 0 | 0 |
+| synthetic-512-c1-overlapping-b32 | cpp | host_to_host | 41.893640 | 42.704887 | 763.8 | 400.8334 | 0 | 0 |
 | synthetic-512-c1-overlapping-b32 | cuda_groups | host_to_host | 42.423810 | 42.731024 | 754.3 | 395.8242 | 655624 | 655620 |
 | synthetic-512-c1-overlapping-b32 | cuda_coop | host_to_host | 42.552673 | 43.008400 | 752.0 | 394.6255 | 655624 | 655620 |
 | synthetic-512-c1-overlapping-b32 | cpu_hard_nms | host_to_host | 7.761378 | 7.844215 | 4123.0 | 2163.5814 | 0 | 0 |
@@ -232,6 +262,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c1-overlapping-b32 | cuda_groups | kernel_only | 1.863680 | 1.863680 | 17170.3 | — | 0 | 0 |
 | synthetic-512-c1-overlapping-b32 | cuda_coop | kernel_only | 1.526784 | 1.528371 | 20959.1 | — | 0 | 0 |
 | synthetic-512-c1-disjoint-b1 | python | host_to_host | 18.866950 | 19.067752 | 53.0 | 1.0000 | 0 | 0 |
+| synthetic-512-c1-disjoint-b1 | cpp | host_to_host | 1.850359 | 1.938695 | 540.4 | 10.1964 | 0 | 0 |
 | synthetic-512-c1-disjoint-b1 | cuda_groups | host_to_host | 50.828403 | 50.868348 | 19.7 | 0.3712 | 20496 | 20492 |
 | synthetic-512-c1-disjoint-b1 | cuda_coop | host_to_host | 3.195302 | 3.254084 | 313.0 | 5.9046 | 20496 | 20492 |
 | synthetic-512-c1-disjoint-b1 | cpu_hard_nms | host_to_host | 2.822323 | 2.907769 | 354.3 | 6.6849 | 0 | 0 |
@@ -240,6 +271,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c1-disjoint-b1 | cuda_groups | kernel_only | 49.340927 | 49.348710 | 20.3 | — | 0 | 0 |
 | synthetic-512-c1-disjoint-b1 | cuda_coop | kernel_only | 1.717248 | 1.718272 | 582.3 | — | 0 | 0 |
 | synthetic-512-c1-disjoint-b8 | python | host_to_host | 151.093772 | 151.850361 | 52.9 | 1.0000 | 0 | 0 |
+| synthetic-512-c1-disjoint-b8 | cpp | host_to_host | 14.285335 | 14.714479 | 560.0 | 10.5768 | 0 | 0 |
 | synthetic-512-c1-disjoint-b8 | cuda_groups | host_to_host | 76.375166 | 76.626353 | 104.7 | 1.9783 | 163912 | 163908 |
 | synthetic-512-c1-disjoint-b8 | cuda_coop | host_to_host | 12.338232 | 12.513820 | 648.4 | 12.2460 | 163912 | 163908 |
 | synthetic-512-c1-disjoint-b8 | cpu_hard_nms | host_to_host | 22.765773 | 22.971230 | 351.4 | 6.6369 | 0 | 0 |
@@ -248,6 +280,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c1-disjoint-b8 | cuda_groups | kernel_only | 66.031105 | 66.045233 | 121.2 | — | 0 | 0 |
 | synthetic-512-c1-disjoint-b8 | cuda_coop | kernel_only | 1.723392 | 1.723392 | 4642.0 | — | 0 | 0 |
 | synthetic-512-c1-disjoint-b32 | python | host_to_host | 605.198424 | 607.282137 | 52.9 | 1.0000 | 0 | 0 |
+| synthetic-512-c1-disjoint-b32 | cpp | host_to_host | 57.749157 | 58.860701 | 554.1 | 10.4798 | 0 | 0 |
 | synthetic-512-c1-disjoint-b32 | cuda_groups | host_to_host | 119.769498 | 120.583798 | 267.2 | 5.0530 | 655624 | 655620 |
 | synthetic-512-c1-disjoint-b32 | cuda_coop | host_to_host | 43.573692 | 43.974766 | 734.4 | 13.8891 | 655624 | 655620 |
 | synthetic-512-c1-disjoint-b32 | cpu_hard_nms | host_to_host | 90.373987 | 90.882854 | 354.1 | 6.6966 | 0 | 0 |
@@ -256,6 +289,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c1-disjoint-b32 | cuda_groups | kernel_only | 78.151680 | 78.167600 | 409.5 | — | 0 | 0 |
 | synthetic-512-c1-disjoint-b32 | cuda_coop | kernel_only | 1.727488 | 1.728512 | 18524.0 | — | 0 | 0 |
 | synthetic-512-c16-overlapping-b1 | python | host_to_host | 47.972991 | 48.395960 | 20.8 | 1.0000 | 0 | 0 |
+| synthetic-512-c16-overlapping-b1 | cpp | host_to_host | 1.472256 | 1.548146 | 679.2 | 32.5847 | 0 | 0 |
 | synthetic-512-c16-overlapping-b1 | cuda_groups | host_to_host | 1.628433 | 1.685222 | 614.1 | 29.4596 | 20616 | 20612 |
 | synthetic-512-c16-overlapping-b1 | cuda_coop | host_to_host | 1.647789 | 1.687923 | 606.9 | 29.1136 | 20616 | 20612 |
 | synthetic-512-c16-overlapping-b1 | cpu_hard_nms | host_to_host | 0.432897 | 0.474537 | 2310.0 | 110.8185 | 0 | 0 |
@@ -264,6 +298,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c16-overlapping-b1 | cuda_groups | kernel_only | 0.103424 | 0.104448 | 9668.9 | — | 0 | 0 |
 | synthetic-512-c16-overlapping-b1 | cuda_coop | kernel_only | 0.125952 | 0.125952 | 7939.5 | — | 0 | 0 |
 | synthetic-512-c16-overlapping-b8 | python | host_to_host | 384.845248 | 386.152906 | 20.8 | 1.0000 | 0 | 0 |
+| synthetic-512-c16-overlapping-b8 | cpp | host_to_host | 11.125578 | 11.331983 | 719.1 | 34.5910 | 0 | 0 |
 | synthetic-512-c16-overlapping-b8 | cuda_groups | host_to_host | 11.437568 | 11.599929 | 699.4 | 33.6475 | 164872 | 164868 |
 | synthetic-512-c16-overlapping-b8 | cuda_coop | host_to_host | 11.368742 | 11.551158 | 703.7 | 33.8512 | 164872 | 164868 |
 | synthetic-512-c16-overlapping-b8 | cpu_hard_nms | host_to_host | 3.625830 | 3.694810 | 2206.4 | 106.1399 | 0 | 0 |
@@ -272,6 +307,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c16-overlapping-b8 | cuda_groups | kernel_only | 0.204800 | 0.206848 | 39062.5 | — | 0 | 0 |
 | synthetic-512-c16-overlapping-b8 | cuda_coop | kernel_only | 0.125952 | 0.126976 | 63516.3 | — | 0 | 0 |
 | synthetic-512-c16-overlapping-b32 | python | host_to_host | 1541.255555 | 1546.665768 | 20.8 | 1.0000 | 0 | 0 |
+| synthetic-512-c16-overlapping-b32 | cpp | host_to_host | 45.108722 | 45.630987 | 709.4 | 34.1676 | 0 | 0 |
 | synthetic-512-c16-overlapping-b32 | cuda_groups | host_to_host | 44.907601 | 46.348571 | 712.6 | 34.3206 | 659464 | 659460 |
 | synthetic-512-c16-overlapping-b32 | cuda_coop | host_to_host | 45.377207 | 46.142907 | 705.2 | 33.9654 | 659464 | 659460 |
 | synthetic-512-c16-overlapping-b32 | cpu_hard_nms | host_to_host | 14.417521 | 14.618790 | 2219.5 | 106.9016 | 0 | 0 |
@@ -280,6 +316,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c16-overlapping-b32 | cuda_groups | kernel_only | 0.211968 | 0.212992 | 150966.2 | — | 0 | 0 |
 | synthetic-512-c16-overlapping-b32 | cuda_coop | kernel_only | 0.132096 | 0.132659 | 242248.1 | — | 0 | 0 |
 | synthetic-512-c16-disjoint-b1 | python | host_to_host | 14.734502 | 14.956917 | 67.9 | 1.0000 | 0 | 0 |
+| synthetic-512-c16-disjoint-b1 | cpp | host_to_host | 1.499634 | 1.588959 | 666.8 | 9.8254 | 0 | 0 |
 | synthetic-512-c16-disjoint-b1 | cuda_groups | host_to_host | 1.970216 | 2.056328 | 507.6 | 7.4786 | 20616 | 20612 |
 | synthetic-512-c16-disjoint-b1 | cuda_coop | host_to_host | 1.678031 | 1.763121 | 595.9 | 8.7808 | 20616 | 20612 |
 | synthetic-512-c16-disjoint-b1 | cpu_hard_nms | host_to_host | 0.848836 | 0.901234 | 1178.1 | 17.3585 | 0 | 0 |
@@ -288,6 +325,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c16-disjoint-b1 | cuda_groups | kernel_only | 0.390144 | 0.391168 | 2563.2 | — | 0 | 0 |
 | synthetic-512-c16-disjoint-b1 | cuda_coop | kernel_only | 0.112640 | 0.113203 | 8877.8 | — | 0 | 0 |
 | synthetic-512-c16-disjoint-b8 | python | host_to_host | 118.541436 | 119.066203 | 67.5 | 1.0000 | 0 | 0 |
+| synthetic-512-c16-disjoint-b8 | cpp | host_to_host | 11.416875 | 11.733847 | 700.7 | 10.3830 | 0 | 0 |
 | synthetic-512-c16-disjoint-b8 | cuda_groups | host_to_host | 12.148919 | 12.311146 | 658.5 | 9.7574 | 164872 | 164868 |
 | synthetic-512-c16-disjoint-b8 | cuda_coop | host_to_host | 11.586797 | 11.762551 | 690.4 | 10.2307 | 164872 | 164868 |
 | synthetic-512-c16-disjoint-b8 | cpu_hard_nms | host_to_host | 6.941000 | 7.039793 | 1152.6 | 17.0784 | 0 | 0 |
@@ -296,6 +334,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c16-disjoint-b8 | cuda_groups | kernel_only | 0.727040 | 0.729088 | 11003.5 | — | 0 | 0 |
 | synthetic-512-c16-disjoint-b8 | cuda_coop | kernel_only | 0.089088 | 0.089088 | 89798.9 | — | 0 | 0 |
 | synthetic-512-c16-disjoint-b32 | python | host_to_host | 476.555512 | 479.323410 | 67.1 | 1.0000 | 0 | 0 |
+| synthetic-512-c16-disjoint-b32 | cpp | host_to_host | 46.535672 | 47.245561 | 687.6 | 10.2406 | 0 | 0 |
 | synthetic-512-c16-disjoint-b32 | cuda_groups | host_to_host | 46.292766 | 46.827782 | 691.3 | 10.2944 | 659464 | 659460 |
 | synthetic-512-c16-disjoint-b32 | cuda_coop | host_to_host | 45.709899 | 46.036490 | 700.1 | 10.4257 | 659464 | 659460 |
 | synthetic-512-c16-disjoint-b32 | cpu_hard_nms | host_to_host | 27.561770 | 27.835785 | 1161.0 | 17.2905 | 0 | 0 |
@@ -304,6 +343,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-512-c16-disjoint-b32 | cuda_groups | kernel_only | 0.568320 | 0.570368 | 56306.3 | — | 0 | 0 |
 | synthetic-512-c16-disjoint-b32 | cuda_coop | kernel_only | 0.095232 | 0.096256 | 336021.5 | — | 0 | 0 |
 | synthetic-2048-c1-overlapping-b1 | python | host_to_host | 8207.773594 | 8233.790183 | 0.1 | 1.0000 | 0 | 0 |
+| synthetic-2048-c1-overlapping-b1 | cpp | host_to_host | 4.969064 | 5.085236 | 201.2 | 1651.7746 | 0 | 0 |
 | synthetic-2048-c1-overlapping-b1 | cuda_groups | host_to_host | 9.277195 | 9.455042 | 107.8 | 884.7257 | 81936 | 81932 |
 | synthetic-2048-c1-overlapping-b1 | cuda_coop | host_to_host | 11.012836 | 11.743547 | 90.8 | 745.2916 | 81936 | 81932 |
 | synthetic-2048-c1-overlapping-b1 | cpu_hard_nms | host_to_host | 0.682867 | 0.708380 | 1464.4 | 12019.5786 | 0 | 0 |
@@ -312,6 +352,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c1-overlapping-b1 | cuda_groups | kernel_only | 4.104192 | 4.105779 | 243.7 | — | 0 | 0 |
 | synthetic-2048-c1-overlapping-b1 | cuda_coop | kernel_only | 5.836800 | 7.507968 | 171.3 | — | 0 | 0 |
 | synthetic-2048-c1-overlapping-b8 | python | host_to_host | 65450.187792 | 65787.044109 | 0.1 | 1.0000 | 0 | 0 |
+| synthetic-2048-c1-overlapping-b8 | cpp | host_to_host | 39.949497 | 40.907914 | 200.3 | 1638.3232 | 0 | 0 |
 | synthetic-2048-c1-overlapping-b8 | cuda_groups | host_to_host | 44.228516 | 44.643317 | 180.9 | 1479.8188 | 655432 | 655428 |
 | synthetic-2048-c1-overlapping-b8 | cuda_coop | host_to_host | 46.979609 | 47.485221 | 170.3 | 1393.1616 | 655432 | 655428 |
 | synthetic-2048-c1-overlapping-b8 | cpu_hard_nms | host_to_host | 5.567161 | 5.675984 | 1437.0 | 11756.4748 | 0 | 0 |
@@ -320,6 +361,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c1-overlapping-b8 | cuda_groups | kernel_only | 4.667392 | 4.668416 | 1714.0 | — | 0 | 0 |
 | synthetic-2048-c1-overlapping-b8 | cuda_coop | kernel_only | 5.854208 | 5.856256 | 1366.5 | — | 0 | 0 |
 | synthetic-2048-c1-overlapping-b32 | python | host_to_host | 263918.194261 | 272147.326949 | 0.1 | 1.0000 | 0 | 0 |
+| synthetic-2048-c1-overlapping-b32 | cpp | host_to_host | 159.541216 | 226.711551 | 200.6 | 1654.2321 | 0 | 0 |
 | synthetic-2048-c1-overlapping-b32 | cuda_groups | host_to_host | 169.004449 | 170.171861 | 189.3 | 1561.6050 | 2621704 | 2621700 |
 | synthetic-2048-c1-overlapping-b32 | cuda_coop | host_to_host | 169.545286 | 258.683142 | 188.7 | 1556.6236 | 2621704 | 2621700 |
 | synthetic-2048-c1-overlapping-b32 | cpu_hard_nms | host_to_host | 22.383745 | 22.837793 | 1429.6 | 11790.6183 | 0 | 0 |
@@ -328,6 +370,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c1-overlapping-b32 | cuda_groups | kernel_only | 5.784576 | 7.153664 | 5532.0 | — | 0 | 0 |
 | synthetic-2048-c1-overlapping-b32 | cuda_coop | kernel_only | 5.871616 | 5.874790 | 5449.9 | — | 0 | 0 |
 | synthetic-2048-c1-disjoint-b1 | python | host_to_host | 136.745895 | 137.546263 | 7.3 | 1.0000 | 0 | 0 |
+| synthetic-2048-c1-disjoint-b1 | cpp | host_to_host | 11.878187 | 12.044295 | 84.2 | 11.5124 | 0 | 0 |
 | synthetic-2048-c1-disjoint-b1 | cuda_groups | host_to_host | 789.716557 | 790.437770 | 1.3 | 0.1732 | 81936 | 81932 |
 | synthetic-2048-c1-disjoint-b1 | cuda_coop | host_to_host | 18.201713 | 18.494123 | 54.9 | 7.5128 | 81936 | 81932 |
 | synthetic-2048-c1-disjoint-b1 | cpu_hard_nms | host_to_host | 45.197802 | 46.485890 | 22.1 | 3.0255 | 0 | 0 |
@@ -336,6 +379,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c1-disjoint-b1 | cuda_groups | kernel_only | 783.372772 | 783.501288 | 1.3 | — | 0 | 0 |
 | synthetic-2048-c1-disjoint-b1 | cuda_coop | kernel_only | 12.109824 | 12.114484 | 82.6 | — | 0 | 0 |
 | synthetic-2048-c1-disjoint-b8 | python | host_to_host | 1080.671361 | 1086.429974 | 7.4 | 1.0000 | 0 | 0 |
+| synthetic-2048-c1-disjoint-b8 | cpp | host_to_host | 94.234469 | 94.986981 | 84.9 | 11.4679 | 0 | 0 |
 | synthetic-2048-c1-disjoint-b8 | cuda_groups | host_to_host | 1122.479816 | 1123.774539 | 7.1 | 0.9628 | 655432 | 655428 |
 | synthetic-2048-c1-disjoint-b8 | cuda_coop | host_to_host | 55.732644 | 60.368766 | 143.5 | 19.3903 | 655432 | 655428 |
 | synthetic-2048-c1-disjoint-b8 | cpu_hard_nms | host_to_host | 360.146303 | 365.378186 | 22.2 | 3.0006 | 0 | 0 |
@@ -344,6 +388,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c1-disjoint-b8 | cuda_groups | kernel_only | 1079.577576 | 1079.769891 | 7.4 | — | 0 | 0 |
 | synthetic-2048-c1-disjoint-b8 | cuda_coop | kernel_only | 12.207104 | 12.256205 | 655.4 | — | 0 | 0 |
 | synthetic-2048-c1-disjoint-b32 | python | host_to_host | 4378.769732 | 4567.416591 | 7.3 | 1.0000 | 0 | 0 |
+| synthetic-2048-c1-disjoint-b32 | cpp | host_to_host | 378.550568 | 446.296396 | 84.5 | 11.5672 | 0 | 0 |
 | synthetic-2048-c1-disjoint-b32 | cuda_groups | host_to_host | 1394.799384 | 1400.557106 | 22.9 | 3.1394 | 2621704 | 2621700 |
 | synthetic-2048-c1-disjoint-b32 | cuda_coop | host_to_host | 185.137256 | 280.202736 | 172.8 | 23.6515 | 2621704 | 2621700 |
 | synthetic-2048-c1-disjoint-b32 | cpu_hard_nms | host_to_host | 1450.608398 | 1480.620628 | 22.1 | 3.0186 | 0 | 0 |
@@ -352,6 +397,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c1-disjoint-b32 | cuda_groups | kernel_only | 1228.553711 | 1228.919171 | 26.0 | — | 0 | 0 |
 | synthetic-2048-c1-disjoint-b32 | cuda_coop | kernel_only | 12.291584 | 12.296756 | 2603.4 | — | 0 | 0 |
 | synthetic-2048-c16-overlapping-b1 | python | host_to_host | 577.158435 | 579.138962 | 1.7 | 1.0000 | 0 | 0 |
+| synthetic-2048-c16-overlapping-b1 | cpp | host_to_host | 5.041050 | 5.111393 | 198.4 | 114.4917 | 0 | 0 |
 | synthetic-2048-c16-overlapping-b1 | cuda_groups | host_to_host | 5.870880 | 6.304983 | 170.3 | 98.3087 | 82056 | 82052 |
 | synthetic-2048-c16-overlapping-b1 | cuda_coop | host_to_host | 6.049028 | 6.273726 | 165.3 | 95.4134 | 82056 | 82052 |
 | synthetic-2048-c16-overlapping-b1 | cpu_hard_nms | host_to_host | 0.967342 | 1.144171 | 1033.8 | 596.6436 | 0 | 0 |
@@ -360,6 +406,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c16-overlapping-b1 | cuda_groups | kernel_only | 0.347136 | 0.348160 | 2880.7 | — | 0 | 0 |
 | synthetic-2048-c16-overlapping-b1 | cuda_coop | kernel_only | 0.479232 | 0.479232 | 2086.7 | — | 0 | 0 |
 | synthetic-2048-c16-overlapping-b8 | python | host_to_host | 4640.637188 | 4659.391694 | 1.7 | 1.0000 | 0 | 0 |
+| synthetic-2048-c16-overlapping-b8 | cpp | host_to_host | 39.564827 | 40.402467 | 202.2 | 117.2920 | 0 | 0 |
 | synthetic-2048-c16-overlapping-b8 | cuda_groups | host_to_host | 42.264162 | 43.198372 | 189.3 | 109.8008 | 656392 | 656388 |
 | synthetic-2048-c16-overlapping-b8 | cuda_coop | host_to_host | 41.920740 | 42.499252 | 190.8 | 110.7003 | 656392 | 656388 |
 | synthetic-2048-c16-overlapping-b8 | cpu_hard_nms | host_to_host | 7.715372 | 7.958830 | 1036.9 | 601.4794 | 0 | 0 |
@@ -368,6 +415,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c16-overlapping-b8 | cuda_groups | kernel_only | 0.821248 | 0.824320 | 9741.3 | — | 0 | 0 |
 | synthetic-2048-c16-overlapping-b8 | cuda_coop | kernel_only | 0.481280 | 0.481280 | 16622.3 | — | 0 | 0 |
 | synthetic-2048-c16-overlapping-b32 | python | host_to_host | 18531.576484 | 18700.288508 | 1.7 | 1.0000 | 0 | 0 |
+| synthetic-2048-c16-overlapping-b32 | cpp | host_to_host | 161.951319 | 228.255978 | 197.6 | 114.4268 | 0 | 0 |
 | synthetic-2048-c16-overlapping-b32 | cuda_groups | host_to_host | 162.397233 | 167.337448 | 197.0 | 114.1126 | 2625544 | 2625540 |
 | synthetic-2048-c16-overlapping-b32 | cuda_coop | host_to_host | 163.071899 | 168.055227 | 196.2 | 113.6405 | 2625544 | 2625540 |
 | synthetic-2048-c16-overlapping-b32 | cpu_hard_nms | host_to_host | 30.669121 | 31.284717 | 1043.4 | 604.2422 | 0 | 0 |
@@ -376,6 +424,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c16-overlapping-b32 | cuda_groups | kernel_only | 0.702464 | 0.704512 | 45553.9 | — | 0 | 0 |
 | synthetic-2048-c16-overlapping-b32 | cuda_coop | kernel_only | 0.435200 | 0.435200 | 73529.4 | — | 0 | 0 |
 | synthetic-2048-c16-disjoint-b1 | python | host_to_host | 61.496973 | 61.844296 | 16.3 | 1.0000 | 0 | 0 |
+| synthetic-2048-c16-disjoint-b1 | cpp | host_to_host | 5.657085 | 5.799052 | 176.8 | 10.8708 | 0 | 0 |
 | synthetic-2048-c16-disjoint-b1 | cuda_groups | host_to_host | 10.015224 | 10.604570 | 99.8 | 6.1403 | 82056 | 82052 |
 | synthetic-2048-c16-disjoint-b1 | cuda_coop | host_to_host | 5.680032 | 5.783191 | 176.1 | 10.8269 | 82056 | 82052 |
 | synthetic-2048-c16-disjoint-b1 | cpu_hard_nms | host_to_host | 4.310806 | 4.408589 | 232.0 | 14.2658 | 0 | 0 |
@@ -384,6 +433,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c16-disjoint-b1 | cuda_groups | kernel_only | 5.172224 | 5.176320 | 193.3 | — | 0 | 0 |
 | synthetic-2048-c16-disjoint-b1 | cuda_coop | kernel_only | 0.333824 | 0.333824 | 2995.6 | — | 0 | 0 |
 | synthetic-2048-c16-disjoint-b8 | python | host_to_host | 491.104934 | 495.882871 | 16.3 | 1.0000 | 0 | 0 |
+| synthetic-2048-c16-disjoint-b8 | cpp | host_to_host | 44.515029 | 45.414757 | 179.7 | 11.0323 | 0 | 0 |
 | synthetic-2048-c16-disjoint-b8 | cuda_groups | host_to_host | 48.875189 | 49.365988 | 163.7 | 10.0481 | 656392 | 656388 |
 | synthetic-2048-c16-disjoint-b8 | cuda_coop | host_to_host | 42.156205 | 42.808645 | 189.8 | 11.6496 | 656392 | 656388 |
 | synthetic-2048-c16-disjoint-b8 | cpu_hard_nms | host_to_host | 34.773715 | 35.053461 | 230.1 | 14.1229 | 0 | 0 |
@@ -392,6 +442,7 @@ Images per second uses batch size divided by p50 latency. Transfer columns show 
 | synthetic-2048-c16-disjoint-b8 | cuda_groups | kernel_only | 5.818368 | 5.820416 | 1375.0 | — | 0 | 0 |
 | synthetic-2048-c16-disjoint-b8 | cuda_coop | kernel_only | 0.347136 | 0.347136 | 23045.7 | — | 0 | 0 |
 | synthetic-2048-c16-disjoint-b32 | python | host_to_host | 2000.504869 | 2013.967242 | 16.0 | 1.0000 | 0 | 0 |
+| synthetic-2048-c16-disjoint-b32 | cpp | host_to_host | 179.028411 | 248.204328 | 178.7 | 11.1742 | 0 | 0 |
 | synthetic-2048-c16-disjoint-b32 | cuda_groups | host_to_host | 174.386268 | 176.371545 | 183.5 | 11.4717 | 2625544 | 2625540 |
 | synthetic-2048-c16-disjoint-b32 | cuda_coop | host_to_host | 167.471725 | 260.500936 | 191.1 | 11.9453 | 2625544 | 2625540 |
 | synthetic-2048-c16-disjoint-b32 | cpu_hard_nms | host_to_host | 140.977294 | 141.594474 | 227.0 | 14.1903 | 0 | 0 |

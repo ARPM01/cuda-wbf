@@ -6952,6 +6952,79 @@
           }
         ]
       }
-    ]
+    ],
+    "cpp_followup": {
+      "commit": "3b08986b16c4b6e5358bae69219827c8205ed90c",
+      "worktree_dirty": false,
+      "native_sha256": "dbc9891c174a8b4400b1294db9d47b5cc2e5e9afa23696319d416cac372eb3d2",
+      "environment": {
+        "status": "passed",
+        "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.39",
+        "python": "3.11.18",
+        "build": {
+          "cxx_standard": 17,
+          "cuda_enabled": true
+        },
+        "dependencies": {
+          "cuda-wbf": "0.1.0",
+          "ensemble-boxes": "1.0.9",
+          "numpy": "2.2.6",
+          "numba": "0.61.2",
+          "pybind11": "2.13.6",
+          "pycocotools": "2.0.11",
+          "torch": null,
+          "torchvision": null
+        },
+        "backends_checked": [
+          "cpp"
+        ],
+        "device": null,
+        "cpu_model": "AMD EPYC 7742 64-Core Processor",
+        "cpu_affinity": [
+          48
+        ],
+        "tools": {
+          "cmake": "cmake version 3.28.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+          "host_compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+          "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Fri_Feb_21_20:23:50_PST_2025\nCuda compilation tools, release 12.8, V12.8.93\nBuild cuda_12.8.r12.8/compiler.35583870_0"
+        },
+        "environment": {
+          "CUDA_VISIBLE_DEVICES": "",
+          "SLURM_JOB_ID": null,
+          "SLURM_JOB_PARTITION": null,
+          "SLURM_JOB_GPUS": null,
+          "NUMBA_NUM_THREADS": "1",
+          "OMP_NUM_THREADS": "1",
+          "OPENBLAS_NUM_THREADS": "1",
+          "MKL_NUM_THREADS": "1"
+        }
+      },
+      "started_utc": "2026-11-18T09:16:08.169094+00:00",
+      "finished_utc": "2026-11-18T09:18:37.396638+00:00",
+      "fixture_verification": {
+        "status": "passed",
+        "backend": "cpp",
+        "fixture_cases": 20,
+        "randomized_cases": 120,
+        "seed": 42,
+        "images": 261,
+        "atol": 1e-06,
+        "rtol": 1e-05,
+        "max_coordinate_error": 0.0,
+        "max_score_error": 0.0,
+        "python": "3.11.18",
+        "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.39",
+        "dependencies": {
+          "ensemble-boxes": "1.0.9",
+          "numpy": "2.2.6",
+          "numba": "0.61.2"
+        },
+        "build": {
+          "cxx_standard": 17,
+          "cuda_enabled": true
+        }
+      },
+      "samples_added": 1440
+    }
   }
 }
