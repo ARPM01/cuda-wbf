@@ -3,7 +3,7 @@
 Use one A100 and one CPU worker. Run `sinfo -o '%P %G %t'` to see active partitions and `scontrol ping` to check the controller. The configuration visible from `ai-n002` lists the `gpu` partition on `ai-n003` with A100 GPUs. Confirm the active partition before submitting a job.
 
 ```bash
-srun --partition=gpu --gres=gpu:1 --cpus-per-task=1 --mem=16G --time=02:00:00 --pty bash
+srun --partition=gpu --gres=gpu:1 --cpus-per-task=1 --mem=16G --time=06:00:00 --pty bash
 ```
 
 Slurm sets `CUDA_VISIBLE_DEVICES` inside the allocation. For an authorized direct assignment, set it to the assigned GPU and record the assignment with the run. Use `nvidia-smi` to check whether the assigned device is idle before measurements.
@@ -47,3 +47,21 @@ for case in light heavy; do
   nsys stats --report cuda_gpu_kern_sum "runs/sharc/profile-${case}.nsys-rep"
 done
 ```
+
+## Measured results
+
+The November 18, 2026 study used one NVIDIA A100-SXM4-40GB and one AMD EPYC 7742 CPU core on SHARC under an authorized direct assignment. The study took about 4 hours 49 minutes and recorded 11,520 timing samples across 48 workloads. Both CUDA WBF backends matched Python WBF on all 5,000 COCO val2017 images, with zero observed coordinate, score, and AP difference. All WBF methods achieved 55.82% COCO AP.
+
+`cuda_coop` beat single-worker Python WBF on median host-to-host latency in all 48 workloads. On the 12 real COCO workloads, the speedup was 7.87×–15.18× across batch sizes 1, 8, and 32. `cuda_groups` beat Python in 43 of 48 workloads and 11 of 12 real workloads. Its real-data exception was at batch size 1 in the highest detection-count quartile, where median latency was 80.42 ms for `cuda_groups` and 69.63 ms for Python.
+
+The two Nsight Systems captures used the same native binary as the timing study and recorded 30 launches per backend. The light and heavy workloads had different kernel latency rankings.
+
+| Profile workload | `cuda_groups` median | `cuda_coop` median |
+| --- | ---: | ---: |
+| One image, 128 overlapping boxes across 16 classes | 20.38 µs | 31.52 µs |
+| 32 images, 2,048 disjoint boxes per image in one class | 1,228.62 ms | 12.26 ms |
+
+- [Full timing report](benchmarks/sharc-a100/summary.md) with p50 and p95 latency, throughput, and transfer counts.
+- [Raw timing samples](benchmarks/sharc-a100/timings.csv.gz). Use `gzip -dc docs/benchmarks/sharc-a100/timings.csv.gz` to read the CSV.
+- [COCO quality results](benchmarks/sharc-a100/quality.json) and [run metadata](benchmarks/sharc-a100/metadata.json). The metadata includes input checksums, selected batches, and the native binary hash. The published copy omits the host name and hardware IDs.
+- Nsight Systems kernel summaries for the [light workload](benchmarks/sharc-a100/profile-light-kernels.csv) and [heavy workload](benchmarks/sharc-a100/profile-heavy-kernels.csv).

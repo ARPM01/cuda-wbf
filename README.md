@@ -15,7 +15,7 @@ Milestones 1 and 2 have merged into `main`. Milestones 3 and 4 are open for revi
 | 1. Build and CPU correctness | A usable scalar C++ backend with Python bindings and oracle verification | Implemented in [#1](https://github.com/ARPM01/cuda-wbf/pull/1), [#2](https://github.com/ARPM01/cuda-wbf/pull/2), and [#3](https://github.com/ARPM01/cuda-wbf/pull/3) and merged into `main` | CPU fixture parity |
 | 2. CUDA correctness | Both CUDA backends with reusable storage and shared arithmetic | Implemented in [#5](https://github.com/ARPM01/cuda-wbf/pull/5), [#6](https://github.com/ARPM01/cuda-wbf/pull/6), and [#7](https://github.com/ARPM01/cuda-wbf/pull/7) and merged into `main` | GPU fixture parity and Compute Sanitizer passed locally |
 | 3. Real-data verification and comparisons | Reproducible COCO ingestion, evaluation, and NMS baselines | Validated locally and open for review in #10, #11, and #12 | Parity and COCO AP agreement passed on all 5,000 images. [Validation report](docs/COCO_VALIDATION.md) |
-| 4. Performance study on SHARC | Reproducible latency measurements, profiling, and a results report | Open in #13–#16 | Full-data parity, timing matrix, and representative profiles |
+| 4. Performance study on SHARC | Reproducible latency measurements, profiling, and a results report | Measured on SHARC and open in #13–#16 | [48 workloads and two kernel profiles](docs/SHARC_BENCHMARK.md#measured-results) |
 
 ## Milestone 1: Build and CPU correctness
 
@@ -92,7 +92,7 @@ The command checks every annotation image and writes `quality.json` and `metadat
 
 Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per case. The synthetic matrix uses **128, 512, and 2,048 boxes per image**, three equally weighted sources, one versus 16 classes, and overlapping versus disjoint boxes. Pin the Python reference to one worker.
 
-See the [SHARC benchmark guide](docs/SHARC_BENCHMARK.md) for setup, the full study command, and profiling. The runner publishes performance after correctness and quality gates pass.
+On one SHARC A100, `cuda_coop` beat single-worker Python WBF in all 12 real COCO workloads, with 7.9×–15.2× median host-to-host speedups. Both CUDA variants matched Python on all 5,000 images and achieved the same 55.82% COCO AP. See the [SHARC benchmark guide](docs/SHARC_BENCHMARK.md#measured-results) for the report, raw samples, and profiles.
 
 ## Working with the stacks
 
