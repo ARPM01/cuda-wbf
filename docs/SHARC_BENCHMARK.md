@@ -18,3 +18,18 @@ python -m cuda_wbf.bench preflight
 ```
 
 Preflight runs one actual fusion through each selected backend and prints the GPU, build, available toolchain versions, dependencies, and CPU affinity as JSON.
+
+## Full study
+
+```bash
+python -m cuda_wbf.bench run \
+  --predictions data/benchmark.zip \
+  --annotations data/instances_val2017.json \
+  --output runs/sharc
+```
+
+Use a new output directory each time. The command runs fixture and full-data parity and quality checks before timing. It reads both assets once and writes the per-sample CSV, metadata, quality results, and Markdown summary together when the run succeeds. Use `--allocation-note` to record a direct GPU assignment.
+
+The real cases use equal-rank detection-count quartiles and up to four evenly spaced complete batches per quartile and batch size. The synthetic matrix uses seed 42 and crosses three detection counts, two class counts, two overlap conditions, and three batch sizes. Each method cycles through the same batches for five warmups and 30 samples after setup.
+
+Host-to-host timing starts with in-memory detections and ends with host-ready outputs. Each batch shape is exercised before warmup to initialize contexts and reserve reusable device buffers. Kernel-only samples bracket the resident kernel with CUDA events on its execution stream. The buffer resets precede the start event. The raw CSV records input and output counts and actual host transfers. For TorchVision the download consists of the selected indices and the host gathers boxes and scores from its original arrays.

@@ -1,10 +1,13 @@
 import os
+import csv
+import json
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
 from cuda_wbf import _native
+from cuda_wbf.reporting import summarize, write_results
 from cuda_wbf.timing import HOST, KERNEL, host_methods, measure_case
 from cuda_wbf.verification import source
 from cuda_wbf.workloads import real_workloads, synthetic_workload, synthetic_workloads
@@ -31,6 +34,32 @@ def test_synthetic_matrix_and_batch_prefix():
         for array_a, array_b in zip(source_a, source_b, strict=True):
             np.testing.assert_array_equal(array_a, array_b)
     assert large.batches[0].input_boxes == 8 * 128
+
+
+def test_report_percentiles_speedup_and_artifacts(tmp_path):
+    rows = [
+        {"workload": "case", "backend": backend, "boundary": boundary, "batch_size": 8,
+         "latency_ms": value, "upload_bytes": 0, "download_bytes": 0}
+        for backend, boundary, values in (
+            ("python", HOST, [10., 20.]), ("cuda_groups", HOST, [4., 6.]),
+            ("cuda_groups", KERNEL, [1., 3.]),
+        )
+        for value in values
+    ]
+    python, cuda, kernel = summarize(rows)
+    assert python["p50_ms"] == 15 and python["p95_ms"] == 19.5
+    assert cuda["speedup"] == 3 and cuda["images_per_s"] == 1600
+    assert kernel["speedup"] is None
+    output = tmp_path / "study"
+    quality = {"images": 5000, "methods": {}}
+    write_results(output, rows, {"commit": "example"}, quality)
+    assert "case` (3.000×)" in (output / "summary.md").read_text()
+    assert json.loads((output / "quality.json").read_text()) == quality
+    with (output / "timings.csv").open() as stream:
+        assert len(list(csv.DictReader(stream))) == len(rows)
+    with pytest.raises(FileExistsError):
+        write_results(output, rows, {"commit": "different"}, quality)
+    assert json.loads((output / "metadata.json").read_text())["commit"] == "example"
 
 
 @pytest.mark.cuda
