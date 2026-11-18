@@ -12,6 +12,8 @@ from .verification import verify_cpu, verify_cuda
 def main(argv=None):
     parser = argparse.ArgumentParser(description="CUDA WBF verification and benchmarks")
     commands = parser.add_subparsers(dest="command", required=True)
+    preflight_parser = commands.add_parser("preflight", help="check backends and record the benchmark environment")
+    preflight_parser.add_argument("--cpu-only", action="store_true", help="check only the scalar backend")
     verify = commands.add_parser("verify", help="check native fusion against the pinned Python oracle")
     verify.add_argument("--cpu-only", action="store_true", help="verify with the CPU backend")
     verify.add_argument("--fixtures-only", action="store_true", help="run named fixtures without randomized cases")
@@ -20,6 +22,15 @@ def main(argv=None):
     verify.add_argument("--baselines", action="store_true", help="evaluate NMS comparisons on the COCO inputs")
     verify.add_argument("--output", type=Path, help="write quality.json and metadata.json to this directory")
     args = parser.parse_args(argv)
+    if args.command == "preflight":
+        from .preflight import preflight
+
+        try:
+            print(json.dumps(preflight(cpu_only=args.cpu_only), indent=2))
+        except (ValueError, RuntimeError, OSError) as error:
+            print(f"Preflight failed: {error}", file=sys.stderr)
+            return 1
+        return 0
     if (args.predictions is None) != (args.annotations is None):
         verify.error("--predictions and --annotations must be supplied together")
     if args.predictions is None and (args.baselines or args.output is not None):
