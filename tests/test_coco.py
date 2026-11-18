@@ -9,6 +9,8 @@ from zipfile import ZipFile
 import numpy as np
 import pytest
 
+from cuda_wbf import _native
+from cuda_wbf.baselines import cpu_hard_nms, cpu_soft_nms, torchvision_cuda_nms
 from cuda_wbf.coco_data import SOURCES, load_coco_data, read_source
 from cuda_wbf.coco_quality import CocoEvaluator, detection_rows
 from cuda_wbf.verification import source
@@ -88,7 +90,7 @@ def test_data_verification_cli_from_another_directory(assets, tmp_path):
     process = subprocess.run(
         [sys.executable, "-m", "cuda_wbf.bench", "verify", "--cpu-only", "--fixtures-only",
          "--predictions", str(assets[0]), "--annotations", str(assets[1]),
-         "--output", str(report_dir)],
+         "--baselines", "--output", str(report_dir)],
         cwd=tmp_path, env={**os.environ, "NUMBA_NUM_THREADS": "1"}, text=True, capture_output=True,
     )
     assert process.returncode == 0, process.stderr
@@ -97,6 +99,41 @@ def test_data_verification_cli_from_another_directory(assets, tmp_path):
     assert quality["images"] == 2
     assert quality["methods"]["cpp"]["absolute_ap_difference"] == 0
     assert quality["methods"]["python"]["metrics"]["AP50"] == pytest.approx(1)
-    assert set(quality["methods"]) == {"python", "cpp"}
+    assert set(quality["methods"]) == {"python", "cpp", "cpu_hard_nms", "cpu_soft_nms"}
     assert json.loads((report_dir / "quality.json").read_text()) == quality
     assert json.loads((report_dir / "metadata.json").read_text()) == report["metadata"]
+
+
+def baseline_inputs():
+    box = [0, 0, 1, 1]
+    disjoint = [0, 0, 0.25, 0.25]
+    return [
+        source([box, box, disjoint], [0.9, 0.8, 0.0009], [7, 19, 19], np.float32),
+        source([box, disjoint], [0.7, 0.001], [7, 19], np.float32),
+        source(dtype=np.float32),
+    ], [1, 3, 6]
+
+
+def assert_hard_nms(run):
+    image, weights = baseline_inputs()
+    boxes, scores, labels = run(image, weights)
+    assert sorted(labels.tolist()) == [7, 19, 19]
+    np.testing.assert_allclose(sorted(scores), [0.0003, 0.08, 0.21])
+    np.testing.assert_array_equal(boxes[scores.argmax()], [0, 0, 1, 1])
+
+
+def test_cpu_baselines_preserve_order_independence():
+    image, weights = baseline_inputs()
+    assert_hard_nms(cpu_hard_nms)
+    soft = cpu_soft_nms(image, weights)
+    # Gaussian decay excludes the overlapping, lower-scoring class-7 box.
+    assert sorted(soft[2].tolist()) == [7, 19, 19]
+    assert_hard_nms(cpu_hard_nms)
+    for actual, expected in zip(cpu_soft_nms(image, weights), soft):
+        np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.cuda
+@pytest.mark.skipif(os.getenv("WBF_TEST_TORCHVISION") != "1", reason="set WBF_TEST_TORCHVISION=1 with CUDA TorchVision")
+def test_torchvision_cuda_nms():
+    assert_hard_nms(torchvision_cuda_nms(_native.cuda_device_info()["device"]))

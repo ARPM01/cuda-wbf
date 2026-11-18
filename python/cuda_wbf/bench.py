@@ -17,12 +17,13 @@ def main(argv=None):
     verify.add_argument("--fixtures-only", action="store_true", help="run named fixtures without randomized cases")
     verify.add_argument("--predictions", type=Path, help="upstream benchmark.zip")
     verify.add_argument("--annotations", type=Path, help="COCO instances_val2017.json")
+    verify.add_argument("--baselines", action="store_true", help="evaluate NMS comparisons on the COCO inputs")
     verify.add_argument("--output", type=Path, help="write quality.json and metadata.json to this directory")
     args = parser.parse_args(argv)
     if (args.predictions is None) != (args.annotations is None):
         verify.error("--predictions and --annotations must be supplied together")
-    if args.predictions is None and args.output is not None:
-        verify.error("--output requires --predictions and --annotations")
+    if args.predictions is None and (args.baselines or args.output is not None):
+        verify.error("--baselines and --output require --predictions and --annotations")
     try:
         if args.cpu_only:
             report = verify_cpu(True) if args.fixtures_only else verify_cpu()
@@ -31,7 +32,7 @@ def main(argv=None):
         if args.predictions is not None:
             from .coco_quality import verify_coco
 
-            quality, metadata = verify_coco(args.predictions, args.annotations, report)
+            quality, metadata = verify_coco(args.predictions, args.annotations, report, baselines=args.baselines)
             report = {**report, "quality": quality, "metadata": metadata}
             if args.output is not None:
                 args.output.mkdir(parents=True, exist_ok=True)
