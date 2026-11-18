@@ -1,12 +1,17 @@
 import hashlib
 import io
 import json
+import os
+import subprocess
+import sys
 from zipfile import ZipFile
 
 import numpy as np
 import pytest
 
 from cuda_wbf.coco_data import SOURCES, load_coco_data, read_source
+from cuda_wbf.coco_quality import CocoEvaluator, detection_rows
+from cuda_wbf.verification import source
 
 HEADER = "img_id,x1,y1,x2,y2,score,label\n"
 
@@ -36,7 +41,7 @@ def assets(tmp_path):
     return predictions, annotations
 
 
-def test_pinned_loader(assets):
+def test_pinned_loader_and_conversion(assets):
     data = load_coco_data(*assets)
     assert data.image_ids == [5, 13]
     assert [item["filename"] for item in data.provenance["sources"]] == [name for name, _ in SOURCES]
@@ -49,6 +54,7 @@ def test_pinned_loader(assets):
     assert boxes.dtype == scores.dtype == np.float32
     assert scores[0] == np.float32(0.001)
     assert labels.tolist() == [7, 19]
+    assert list(detection_rows(5, data.dimensions[5], first[0]))[0]["bbox"] == [0, 10, 40, 10]
     assert first[-1][1].tolist() == [np.float32(0.6)]
     assert data.provenance["sources"][0]["rows"] == {
         "accepted": 2, "nonpositive_score": 1, "invalid_box": 1, "collapsed_after_clipping": 1,
@@ -67,3 +73,30 @@ def test_pinned_loader(assets):
 def test_invalid_csv_row_reports_location(row, message):
     with pytest.raises(ValueError, match=f"source.csv, CSV row 2: .*{message}"):
         read_source(io.StringIO(HEADER + row + "\n"), "source.csv", {5: (80, 40)}, {7})
+
+
+def test_coco_evaluation_with_no_detections(assets):
+    pytest.importorskip("pycocotools")
+    data = load_coco_data(*assets)
+    empty = [source() for _ in data.images]
+    assert CocoEvaluator(data).evaluate(empty)["AP"] == 0
+
+
+def test_data_verification_cli_from_another_directory(assets, tmp_path):
+    pytest.importorskip("pycocotools")
+    report_dir = tmp_path / "report"
+    process = subprocess.run(
+        [sys.executable, "-m", "cuda_wbf.bench", "verify", "--cpu-only", "--fixtures-only",
+         "--predictions", str(assets[0]), "--annotations", str(assets[1]),
+         "--output", str(report_dir)],
+        cwd=tmp_path, env={**os.environ, "NUMBA_NUM_THREADS": "1"}, text=True, capture_output=True,
+    )
+    assert process.returncode == 0, process.stderr
+    report = json.loads(process.stdout)
+    quality = report["quality"]
+    assert quality["images"] == 2
+    assert quality["methods"]["cpp"]["absolute_ap_difference"] == 0
+    assert quality["methods"]["python"]["metrics"]["AP50"] == pytest.approx(1)
+    assert set(quality["methods"]) == {"python", "cpp"}
+    assert json.loads((report_dir / "quality.json").read_text()) == quality
+    assert json.loads((report_dir / "metadata.json").read_text()) == report["metadata"]
