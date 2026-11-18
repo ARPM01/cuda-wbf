@@ -4,7 +4,55 @@ Weighted Boxes Fusion (WBF) for object detection, packaged as `cuda_wbf`. It pro
 
 ## SHARC benchmark results
 
-On one NVIDIA A100, `cuda_coop` lowered median host-to-host latency across all 48 workloads compared with single-worker Python WBF. It was **7.87×–15.18× faster** across the 12 real COCO workloads. Both CUDA backends matched the Python reference on all **5,000 COCO val2017 images** and achieved **55.82% COCO AP**. [Benchmark setup and results](docs/SHARC_BENCHMARK.md) · [Full timing report](docs/benchmarks/sharc-a100/summary.md)
+On one NVIDIA A100, `cuda_coop` lowered median host-to-host latency across all 48 workloads and was **7.87×–15.18× faster** than single-worker Python WBF on the 12 real COCO workloads. Both CUDA backends matched the Python reference outputs on all 5,000 COCO val2017 images.
+
+AP and AP50 use all 5,000 images. Latency is the range of median host-to-host times per batch across the four COCO detection-count quartiles.
+
+| Method | COCO AP | COCO AP50 | 1 image (ms) | 8 images (ms) | 32 images (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Python WBF | 55.82% | 74.17% | 26.20–69.63 | 205.19–526.98 | 814.13–2,118.02 |
+| Scalar C++ WBF | 55.82% | 74.17% | — | — | — |
+| `cuda_groups` | 55.82% | 74.17% | 6.11–80.42 | 34.82–124.84 | 90.53–227.17 |
+| `cuda_coop` | 55.82% | 74.17% | 3.28–8.47 | 19.73–37.53 | 74.16–139.53 |
+| CPU hard NMS | 52.49% | 72.20% | 1.20–2.35 | 10.06–15.60 | 40.84–61.33 |
+| CPU Gaussian Soft-NMS | 52.12% | 71.34% | 20.47–58.13 | 156.30–393.84 | 618.71–1,545.51 |
+| TorchVision CUDA hard NMS | 52.49% | 72.20% | 0.71–0.91 | 6.20–7.42 | 24.62–28.44 |
+
+The SHARC study evaluated scalar C++ WBF for accuracy only. [Benchmark setup and results](docs/SHARC_BENCHMARK.md) · [Full timing report](docs/benchmarks/sharc-a100/summary.md)
+
+## How the CUDA backends work
+
+The host filters detections, weights their scores, and packs each nonempty image/class pair into a contiguous group sorted by descending weighted score. Within a group, both kernels process one candidate at a time. A candidate joins the cluster with the highest intersection over union (IoU) strictly above the threshold, or starts a new cluster. Equal IoUs favor the earliest-created cluster. Each merge updates the weighted-average box, which the next candidate uses for matching.
+
+### `cuda_groups`
+
+Groups run in parallel, with one CUDA thread scanning each group's current cluster boxes serially. This avoids block-wide reductions and barriers. With disjoint boxes, every candidate creates a cluster, so the number of IoU checks grows quadratically within the group.
+
+```mermaid
+flowchart TD
+    group["Assign one CUDA thread to the group"] --> remaining{"More candidates?"}
+    remaining -->|Yes| scan["Thread scans cluster boxes in order"]
+    scan --> update["Thread updates the best match or starts a cluster"]
+    update --> remaining
+    remaining -->|No| output["Thread writes fused boxes"]
+```
+
+### `cuda_coop`
+
+Each group gets one 128-thread block. For each candidate, threads scan cluster slots in strides of 128, then reduce their local best matches in shared memory. Thread 0 creates or updates the winning cluster, and a block-wide barrier makes the update visible before the next candidate. This spreads large scans across the block while preserving the reference's update order.
+
+```mermaid
+flowchart TD
+    group["Assign one 128-thread block to the group"] --> remaining{"More candidates?"}
+    remaining -->|Yes| scan["Each thread t scans slots t, t + 128, t + 256, ..."]
+    scan --> reduce["Reduce local matches in shared memory"]
+    reduce --> update["Thread 0 updates the best match or starts a cluster"]
+    update --> barrier["Synchronize the block"]
+    barrier --> remaining
+    remaining -->|No| output["Threads write fused boxes in parallel"]
+```
+
+Both backends reuse GPU buffers and share the same fusion arithmetic. The host compacts and sorts the returned detections. The SHARC kernel-only profiles had median times of **20.38 µs** for `cuda_groups` and **31.52 µs** for `cuda_coop` on one image with 128 overlapping boxes across 16 classes. For 32 images with 2,048 disjoint boxes per image in one class, those times were **1,228.62 ms** and **12.26 ms**, respectively. [CUDA runtime design](docs/CUDA_RUNTIME.md) · [Kernel profiles](docs/SHARC_BENCHMARK.md#measured-results)
 
 ## Build and verify
 
@@ -39,7 +87,7 @@ See the [CPU validation report](docs/CPU_VALIDATION.md) and [CUDA validation rep
 
 Call `cuda_wbf.fuse(images, weights, backend="cpp")` with one ordered list of sources per image and one positive weight per source. Each source is a `(boxes, scores, labels)` tuple with normalized `(N, 4)` xyxy boxes, `(N,)` scores in `(0, 1]`, and `(N,)` integer labels. Keep empty source slots with the same array shapes. The function returns one score-ordered tuple per image.
 
-Use `cuda_wbf.available_backends()` to check which backends are compiled. `cuda_groups` uses one thread per image/class group. `cuda_coop` uses one block per group to search cluster representatives cooperatively. [CUDA runtime design](docs/CUDA_RUNTIME.md)
+Use `cuda_wbf.available_backends()` to check which backends are compiled.
 
 ## COCO benchmark prerequisites
 
