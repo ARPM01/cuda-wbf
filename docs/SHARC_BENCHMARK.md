@@ -8,7 +8,7 @@ srun --partition=gpu --gres=gpu:1 --cpus-per-task=1 --mem=16G --time=06:00:00 --
 
 Slurm sets `CUDA_VISIBLE_DEVICES` inside the allocation. For an authorized direct assignment, set it to the assigned GPU and record the assignment with the run. Use `nvidia-smi` to check whether the assigned device is idle before measurements.
 
-Activate the Python 3.11 environment from the [README](../README.md#technical-reference). Use `nvcc --version` and `nvidia-smi` to check the toolkit and driver. If the toolkit is provided as a module, use `module avail cuda` to find its local name. Build and install the CUDA package with the README's CMake commands. Install the evaluation and CUDA TorchVision dependencies from the [Milestone 3 setup](../README.md#milestone-3-real-data-verification-and-comparisons).
+Create and activate the [Python 3.11 environment](../README.md#build-and-verify). Use `nvcc --version` and `nvidia-smi` to check the toolkit and driver. If the toolkit is provided as a module, use `module avail cuda` to find its local name. Follow the [CUDA build](../README.md#cuda-build) and install the [COCO benchmark prerequisites](../README.md#coco-benchmark-prerequisites).
 
 For offline compute nodes, stage the environment, wheels, and both data assets on a shared filesystem from a network-enabled host. Install staged wheels with `python -m pip install --no-index --find-links /path/to/wheels`, specifying the matching CUDA versions of torch and torchvision. Keep each run's JSON and CSV artifacts on shared storage.
 

@@ -1,151 +1,26 @@
 # cuda-wbf
 
-A mini project to implement Weighted Boxes Fusion (WBF) for object detection in CUDA and measure when it reduces postprocessing latency versus the Python reference.
+Weighted Boxes Fusion (WBF) for object detection, packaged as `cuda_wbf`. It provides a scalar C++ backend and two optional CUDA backends.
 
-**Stretch goal:** Package the implementation as an importable Python module (`import cuda_wbf`) so it can be reused in other Python projects.
+## SHARC benchmark results
 
-## Delivery status
+On one NVIDIA A100, `cuda_coop` lowered median host-to-host latency across all 48 workloads compared with single-worker Python WBF. It was **7.87×–15.18× faster** across the 12 real COCO workloads. Both CUDA backends matched the Python reference on all **5,000 COCO val2017 images** and achieved **55.82% COCO AP**. [Benchmark setup and results](docs/SHARC_BENCHMARK.md) · [Full timing report](docs/benchmarks/sharc-a100/summary.md)
 
-Implementation is organized into four milestones, each delivered as a stack of focused pull requests. The first PR in a milestone targets `main`; each subsequent PR targets the preceding branch. Review and merge each stack from the bottom up.
+## Build and verify
 
-Milestones 1 and 2 have merged into `main`. Milestones 3 and 4 are open for review in dependency order.
-
-| Milestone | Outcome | Status | Acceptance gate |
-| --- | --- | --- | --- |
-| 1. Build and CPU correctness | A usable scalar C++ backend with Python bindings and oracle verification | Implemented in [#1](https://github.com/ARPM01/cuda-wbf/pull/1), [#2](https://github.com/ARPM01/cuda-wbf/pull/2), and [#3](https://github.com/ARPM01/cuda-wbf/pull/3) and merged into `main` | CPU fixture parity |
-| 2. CUDA correctness | Both CUDA backends with reusable storage and shared arithmetic | Implemented in [#5](https://github.com/ARPM01/cuda-wbf/pull/5), [#6](https://github.com/ARPM01/cuda-wbf/pull/6), and [#7](https://github.com/ARPM01/cuda-wbf/pull/7) and merged into `main` | GPU fixture parity and Compute Sanitizer passed locally |
-| 3. Real-data verification and comparisons | Reproducible COCO ingestion, evaluation, and NMS baselines | Validated locally and open for review in #10, #11, and #12 | Parity and COCO AP agreement passed on all 5,000 images. [Validation report](docs/COCO_VALIDATION.md) |
-| 4. Performance study on SHARC | Reproducible latency measurements, profiling, and a results report | Measured on SHARC and open in #13–#16 | [48 workloads and two kernel profiles](docs/SHARC_BENCHMARK.md#measured-results) |
-
-## Milestone 1: Build and CPU correctness
-
-| PR | Branch → base | Scope | Validation |
-| --- | --- | --- | --- |
-| [#1 — Build and packaging](https://github.com/ARPM01/cuda-wbf/pull/1) | `stack/cpu-01-build` → `main` | CMake 3.24+, C++17, Python 3.11, pybind11, pinned dependencies, CUDA disabled by default, prefix installation, and wheel packaging | Configure/build/install, extension smoke test, and wheel build |
-| [#2 — Scalar fusion API](https://github.com/ARPM01/cuda-wbf/pull/2) | `stack/cpu-02-fusion` → `main` | Validated `cuda_wbf.fuse` API, upstream prefilter and sort ordering, scalar matching against current representatives, reference arithmetic, and unavailable-backend errors | API checks and seeded oracle comparisons |
-| [#3 — Verification and CI](https://github.com/ARPM01/cuda-wbf/pull/3) | `stack/cpu-03-verification` → `main` | `verify --cpu-only`, named fixtures, randomized parity checks, invalid-input tests, Linux/macOS CI, and a machine validation report | Installed-wheel tests, CPU verification, and a Debug sanitizer build |
-
-The CPU stack was tested on the development machine with Python 3.11.18, GCC 13.3, and CMake 3.28.3. All **210 tests** passed against the installed wheel from outside the checkout and against a Debug build with UndefinedBehaviorSanitizer. Verification covered **20 fixtures plus 120 randomized cases across 261 images**, with exact ordered labels/counts and zero observed coordinate or score error against the pinned oracle. GPU fixture validation is reported under milestone 2.
-
-See the [CPU validation report](docs/CPU_VALIDATION.md). The verification entry point provided by this stack is:
-
-```bash
-python -m cuda_wbf.bench verify --cpu-only
-```
-
-**Gate:** require exact output counts and ordered labels, and coordinates/scores within `atol=1e-6`, `rtol=1e-5` against `ensemble-boxes==1.0.9`. Cover empty inputs, unequal weights, score and IoU boundaries, ties, moving representatives, and the slide example.
-
-## Milestone 2: CUDA correctness
-
-PRs #5, #6, and #7 have merged into `main`.
-
-| PR | Branch → base | Scope | Validation |
-| --- | --- | --- | --- |
-| [#5 — CUDA runtime and serial group kernel](https://github.com/ARPM01/cuda-wbf/pull/5) | `stack/cuda-01-groups` → `main` | Enable optional CUDA builds; accept caller-selected architectures; share cluster arithmetic with the CPU backend; implement checked reusable workspace, separate upload/launch/download operations, error handling, and `cuda_groups` with one thread per nonempty image/class group | Build with CUDA both OFF and ON; compare the group kernel with CPU and Python fixtures; verify empty calls launch no kernel |
-| [#6 — Cooperative group kernel](https://github.com/ARPM01/cuda-wbf/pull/6) | `stack/cuda-02-coop` → `main` | Implement `cuda_coop` with one 128-thread block per group, strided representative scans, highest-IoU/lowest-index reduction, and synchronized updates | Reuse the same fixtures; test ties, moving representatives, and groups exceeding 128 live clusters |
-| [#7 — GPU verification and safety](https://github.com/ARPM01/cuda-wbf/pull/7) | `stack/cuda-03-verification` → `stack/cuda-02-coop` | Extend verification to both GPU backends; exercise workspace reuse and alternating call sizes; document GPU safety commands and results | Oracle parity on both kernels plus Compute Sanitizer `memcheck` and `synccheck` |
-
-The installed CUDA wheel passed **504 tests** on one A100 with CUDA 12.8. CPU-only regression testing passed **211 tests**. All three backends checked the same **261 images** against the oracle with exact counts/labels and zero observed coordinate or score error. Compute Sanitizer memcheck and synccheck each passed **55 fixture/safety tests** with zero errors; memcheck also reported zero leaked bytes. An additional **53-test racecheck** pass reported zero hazards. Its selection excludes Python thread-local teardown and the CLI subprocess because the tested racecheck run stalled in thread lifecycle; both tests passed normal, memcheck, and synccheck runs.
-
-See the [CUDA validation report](https://github.com/ARPM01/cuda-wbf/blob/9c5001bc0609091728dc3dadc276724a820af281/docs/CUDA_VALIDATION.md) for commands, environment, logs, and coverage. These shared-device correctness runs make no performance claim.
-
-**Gate:** both CUDA variants must pass the CPU fixture contract with exact counts/labels and the same numeric tolerances. Allocation, launch, and synchronization failures must reach the caller. Pass sanitizer checks before proceeding to real-data measurements.
-
-## Milestone 3: Real-data verification and comparisons
-
-| PR | Branch → base | Scope | Validation |
-| --- | --- | --- | --- |
-| [#10 — Pinned data ingestion](https://github.com/ARPM01/cuda-wbf/pull/10) | `stack/data-01-ingestion` → `main` | Stage the upstream prediction archive and COCO annotations; pin filenames, source order, weights, and thresholds to upstream commit `796d4b1`; preserve row order, float32 parsing, category IDs, and empty source slots; record checksums and effective configuration | Loader fixtures for malformed rows, clipping, discarded boxes/scores, missing detections, and deterministic ordering |
-| [#11 — Full-data parity and COCO evaluation](https://github.com/ARPM01/cuda-wbf/pull/11) | `stack/data-02-quality` → `stack/data-01-ingestion` | Extend `verify` with prediction/annotation arguments; compare every annotation image with Python WBF; convert normalized xyxy to pixel xywh for COCOeval; report AP, AP50, AP by object size, and AR100 | Full-val2017 counts, ordered labels, and numeric parity for both CUDA variants; absolute COCO AP difference at most `1e-4` versus Python |
-| [#12 — NMS comparison methods](https://github.com/ARPM01/cuda-wbf/pull/12) | `stack/data-03-baselines` → `stack/data-02-quality` | Add upstream CPU hard NMS, Gaussian Soft-NMS, and TorchVision CUDA hard NMS with a separate benchmark dependency group | Check class awareness, source-weight scaling, score floors, IoU/sigma settings, and evaluation of the same full image set |
-
-**Gate:** every image must pass custom WBF parity, including images with empty outputs. Keep NMS quality results separate from the WBF acceptance gate. Use the same detections for all methods and real predictions for all quality measurements.
-
-Install the evaluation dependency in the Python 3.11 environment. For a GPU baseline run, also install the matching CUDA builds of torch and torchvision from the [PyTorch wheel index for your CUDA version](https://pytorch.org/get-started/previous-versions/). The `benchmark` extra declares torch 2.8.0 and torchvision 0.23.0. Use the CUDA 12.8 index for the validation configuration.
-
-```bash
-python -m pip install pycocotools==2.0.11
-python -m pip install torch==2.8.0 torchvision==0.23.0 \
-  --index-url https://download.pytorch.org/whl/cu128
-```
-
-Place the [upstream prediction ZIP](https://github.com/ZFTurbo/Weighted-Boxes-Fusion/releases/download/v1.0.5/benchmark.zip) in `data/benchmark.zip`. Extract `annotations/instances_val2017.json` from the [COCO 2017 train/val annotation ZIP](https://s3.amazonaws.com/images.cocodataset.org/annotations/annotations_trainval2017.zip) into `data/instances_val2017.json`. The verifier reads the prediction ZIP directly and records the SHA-256 of both inputs.
-
-With the CUDA package installed and one GPU selected, run:
-
-```bash
-NUMBA_NUM_THREADS=1 python -m cuda_wbf.bench verify \
-  --predictions data/benchmark.zip --annotations data/instances_val2017.json \
-  --baselines --output runs/m3
-```
-
-The command checks every annotation image and writes `quality.json` and `metadata.json` on success. Use `--cpu-only` for scalar WBF parity and the two CPU NMS comparisons, or omit `--baselines` to run only WBF verification and evaluation. The upstream Gaussian Soft-NMS wrapper applies score decay during selection and returns the original weighted scores for the selected boxes. [Pinned NMS implementation](https://github.com/ZFTurbo/Weighted-Boxes-Fusion/blob/796d4b1b6125ebef795cf14363dae00da78d5a1c/ensemble_boxes/ensemble_boxes_nms.py)
-
-## Milestone 4: Performance study on SHARC
-
-| PR | Branch → base | Scope | Validation |
-| --- | --- | --- | --- |
-| [#13 — Preflight and SHARC bring-up](https://github.com/ARPM01/cuda-wbf/pull/13) | `stack/bench-01-preflight` → `stack/data-03-baselines` | Check CUDA backends and record the device, toolchain, dependencies, and CPU affinity. Document allocation and offline setup. | Successful A100 preflight on SHARC |
-| [#14 — Workloads and timing](https://github.com/ARPM01/cuda-wbf/pull/14) | `stack/bench-02-timing` → `stack/bench-01-preflight` | Select real-data quartile batches and seed-42 synthetic cases. Measure host-to-host latency and resident CUDA kernels. | Check deterministic batches, timing boundaries, and actual transfers |
-| [#15 — Runner and reports](https://github.com/ARPM01/cuda-wbf/pull/15) | `stack/bench-03-reporting` → `stack/bench-02-timing` | Run fixture and full-data verification before timing. Publish sample CSV, metadata, quality, and summary. | Check report calculations and artifact publication |
-| [#16 — Measured results and profiling](https://github.com/ARPM01/cuda-wbf/pull/16) | `stack/bench-04-results` → `stack/bench-03-reporting` | Execute the full study on one SHARC A100 and capture light and heavy resident-kernel profiles. | Review parity evidence, raw-sample provenance, transfers, and crossovers |
-
-Use batch sizes **1, 8, and 32**, **five warmups**, and **30 timed samples** per case. The synthetic matrix uses **128, 512, and 2,048 boxes per image**, three equally weighted sources, one versus 16 classes, and overlapping versus disjoint boxes. Pin the Python reference to one worker.
-
-On one SHARC A100, `cuda_coop` beat single-worker Python WBF in all 12 real COCO workloads, with 7.9×–15.2× median host-to-host speedups. Both CUDA variants matched Python on all 5,000 images and achieved the same 55.82% COCO AP. See the [SHARC benchmark guide](docs/SHARC_BENCHMARK.md#measured-results) for the report, raw samples, and profiles.
-
-## Working with the stacks
-
-1. Keep each PR focused on the row above and include its own validation evidence.
-2. Base each PR on its immediate predecessor. Retarget the bottom open PR to `main` after its dependency merges.
-3. Review and merge in dependency order.
-4. After a parent merges, retarget its child to `main` and update the remaining stack. If the parent was squash-merged or rebased, rebase descendants so their diffs contain only their own changes. Use force-with-lease if rewritten branches must be published.
-5. Update this README when PRs open or merge, and attach gate evidence before moving to the next milestone.
-
-## Technical reference
-
-Start with the [implementation plan](IMPLEMENTATION_PLAN.md). It defines the reference behavior, the two CUDA kernels, the SHARC bring-up sequence, and the COCO benchmark protocol. The plan includes a CPU-only build for development on machines without CUDA.
-
-The implementation provides a C++17 fusion backend, two optional CUDA kernels, a COCO quality verifier, and a benchmark runner.
-
-Install conda (Miniconda or Miniforge) and a C++17 compiler such as GCC or Clang. From the repository root, create and activate the Python 3.11 environment:
+Use Python 3.11, CMake 3.24+, and a C++17 compiler. From the repository root, create the environment and install the CPU build:
 
 ```bash
 conda env create --file environment.yml
 conda activate cuda-wbf
-```
-
-[environment.yml](environment.yml) installs CMake 3.24+, Ninja, and the pinned runtime and development dependencies from `pyproject.toml`. It does not install the project itself. Run `conda activate cuda-wbf` in each new shell before building or testing, and use `conda deactivate` when finished.
-
-Build and test the CPU backend in the activated environment:
-
-```bash
-cmake -S . -B build/cpu -DCMAKE_BUILD_TYPE=Release -DWBF_ENABLE_CUDA=OFF \
-  -DPython_EXECUTABLE="$(command -v python)" \
-  -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
-cmake --build build/cpu --parallel
-cmake --install build/cpu --prefix "$PWD/build/cpu/stage"
-export PYTHONPATH="$PWD/build/cpu/stage"
+python -m pip install '.[dev,evaluation]'
 python -m pytest
 python -m cuda_wbf.bench verify --cpu-only
 ```
 
-CMake installs the Python package and extension together directly under the supplied prefix. As an alternative, build and install a wheel in the activated environment:
+### CUDA build
 
-```bash
-unset PYTHONPATH
-python -m pip install '.[dev]'
-python -m pytest
-python -m cuda_wbf.bench verify --cpu-only
-```
-
-Unsetting `PYTHONPATH` ensures these commands use the installed wheel rather than a previous CMake staging directory. CUDA is disabled by default for both installation methods. If an existing CMake build was configured with another Python environment, use a fresh build directory so CMake discovers the conda interpreter.
-
-Call `cuda_wbf.fuse(images, weights, backend="cpp", iou_thr=0.7, skip_box_thr=0.001)` with one list of sources per image. Each source is a `(boxes, scores, labels)` tuple: normalized `(N, 4)` xyxy boxes, `(N,)` scores in `(0, 1]`, and `(N,)` integer labels. Keep every configured source slot, using correctly shaped empty arrays when necessary. The result contains one score-ordered tuple per image. Boxes and scores are float64; labels are int64.
-
-Inputs must be finite, coordinates must be in `[0, 1]` with positive box area, and source weights must be positive with a finite sum. Weights are canonicalized to float64; input score precision is preserved for the reference prefilter's threshold comparison. The API rejects invalid data before calling the upstream prefilter. Class grouping and both score sorts reuse the pinned reference behavior. The native loop preserves singleton precision and rounds merged coordinates and scores as the reference does. `cuda_wbf.available_backends()` reports compiled backends; requests for an unavailable backend raise an actionable error.
-
-For CUDA, use a separate installation and a driver-compatible CUDA Toolkit 11.8 or newer:
+Use a driver-compatible CUDA Toolkit 11.8 or newer. Select the GPU with `CUDA_VISIBLE_DEVICES` before configuring with `native` and running verification. When building without a visible GPU, use an explicit compute capability such as `80` for A100.
 
 ```bash
 cmake -S . -B build/cuda -DCMAKE_BUILD_TYPE=Release -DWBF_ENABLE_CUDA=ON \
@@ -154,24 +29,39 @@ cmake -S . -B build/cuda -DCMAKE_BUILD_TYPE=Release -DWBF_ENABLE_CUDA=ON \
 cmake --build build/cuda --parallel
 cmake --install build/cuda --prefix "$PWD/build/cuda/stage"
 export PYTHONPATH="$PWD/build/cuda/stage"
-WBF_TEST_CUDA=1 python -m pytest -q
+WBF_TEST_CUDA=1 python -m pytest
+python -m cuda_wbf.bench verify
 ```
 
-Use an explicit architecture, such as `80` for A100, when compiling without a visible GPU. Select one GPU before starting Python with `CUDA_VISIBLE_DEVICES`. Call the same `fuse` API with `backend="cuda_groups"` or `backend="cuda_coop"`. The first assigns one thread per image/class group; the second assigns a 128-thread block per group to search representatives cooperatively. Both preserve sequential candidate processing and share the same workspace and arithmetic. The API keeps one reusable workspace per Python thread and checks device availability on the first nonempty CUDA call. Empty results require no kernel launch. See [CUDA runtime design](docs/CUDA_RUNTIME.md) for the shared layout and resident execution interface.
+See the [CPU validation report](docs/CPU_VALIDATION.md) and [CUDA validation report](docs/CUDA_VALIDATION.md) for parity and sanitizer checks.
 
-`verify --cpu-only` runs without COCO data or a GPU when invoked without asset arguments. It checks the pinned oracle versions, runs 20 named fixtures and 120 seeded randomized cases, and prints a JSON report with the maximum errors and environment versions. In a CUDA build, `python -m cuda_wbf.bench verify` checks the CPU backend and both CUDA kernels and records the selected device. Add `--fixtures-only` to omit randomized cases. Verification requires exact output shapes and ordered labels plus `atol=1e-6`, `rtol=1e-5` for coordinates and scores. Pytest also covers invalid inputs, independent geometry expectations, repeated calls, workspace concurrency, and the installed CLI.
+## Python API
 
-Run the GPU correctness and sanitizer checks from the repository root, after selecting one GPU and staging the CUDA package on `PYTHONPATH`:
+Call `cuda_wbf.fuse(images, weights, backend="cpp")` with one ordered list of sources per image and one positive weight per source. Each source is a `(boxes, scores, labels)` tuple with normalized `(N, 4)` xyxy boxes, `(N,)` scores in `(0, 1]`, and `(N,)` integer labels. Keep empty source slots with the same array shapes. The function returns one score-ordered tuple per image.
+
+Use `cuda_wbf.available_backends()` to check which backends are compiled. `cuda_groups` uses one thread per image/class group. `cuda_coop` uses one block per group to search cluster representatives cooperatively. [CUDA runtime design](docs/CUDA_RUNTIME.md)
+
+## COCO benchmark prerequisites
+
+Stage the [prediction archive](https://github.com/ZFTurbo/Weighted-Boxes-Fusion/releases/download/v1.0.5/benchmark.zip) at `data/benchmark.zip`. Extract `annotations/instances_val2017.json` from the [COCO 2017 annotations archive](https://s3.amazonaws.com/images.cocodataset.org/annotations/annotations_trainval2017.zip) to `data/instances_val2017.json`.
+
+Install the evaluation dependency and the CUDA-enabled TorchVision baseline dependencies. These commands use the CUDA 12.8 wheels from the SHARC run:
 
 ```bash
-bash scripts/check_cuda.sh test
-bash scripts/check_cuda.sh memcheck
-bash scripts/check_cuda.sh synccheck
-bash scripts/check_cuda.sh racecheck
+python -m pip install pycocotools==2.0.11
+python -m pip install torch==2.8.0 torchvision==0.23.0 \
+  --index-url https://download.pytorch.org/whl/cu128
 ```
 
-Set `WBF_PYTHON` if the interpreter is not named `python`. Memcheck and synccheck cover named fixtures and GPU safety tests, including child verification processes. The additional racecheck pass excludes the Python thread-lifecycle and CLI subprocess tests because the tested toolchain stalls in thread-local teardown. All tool errors return a nonzero status. Logs are written under `build/cuda/sanitizer`. The full test run additionally covers all randomized cases.
+See the [SHARC benchmark guide](docs/SHARC_BENCHMARK.md#full-study) for the timing and profiling commands, or the [COCO validation report](docs/COCO_VALIDATION.md) for quality checks.
 
-See [CPU validation results](docs/CPU_VALIDATION.md) for the tests run on the development machine and sanitizer reproduction commands.
+## Repository structure
 
-See [CUDA validation results](docs/CUDA_VALIDATION.md) for both kernels' parity, installed-wheel checks, and Compute Sanitizer results.
+- [`src/`](src/) contains the scalar C++ implementation, CUDA kernels and workspace, shared fusion arithmetic, and pybind11 bindings.
+- [`python/cuda_wbf/`](python/cuda_wbf/) contains the Python API, input validation, COCO evaluation, NMS baselines, and benchmark CLI.
+- [`tests/`](tests/) covers API behavior, reference parity, CUDA safety, and the benchmark tooling.
+- [`scripts/`](scripts/) contains the CUDA test and Compute Sanitizer runner.
+- [`docs/`](docs/) contains the runtime design and validation guides. [`docs/benchmarks/sharc-a100/`](docs/benchmarks/sharc-a100/) holds the published timings, profiles, quality metrics, and run metadata.
+- [`CMakeLists.txt`](CMakeLists.txt), [`pyproject.toml`](pyproject.toml), and [`environment.yml`](environment.yml) define the native build, Python package, and development environment. [`.github/workflows/`](.github/workflows/) contains the CPU CI workflow.
+
+See the [implementation plan](IMPLEMENTATION_PLAN.md) for the algorithm and benchmark protocol.

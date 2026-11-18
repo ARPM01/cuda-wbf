@@ -26,7 +26,7 @@ The fixtures cover empty inputs, multiple images/classes, source weighting and a
 
 ## Reproduction
 
-From the repository root, create the conda environment with `conda env create --file environment.yml` if it does not exist, then follow the Release build and test commands in [README.md](../README.md#technical-reference). The results above describe the original validation environment; the conda environment provides the same Python minor version and pinned Python dependencies for reproduction.
+Follow the [CPU installation and verification steps](../README.md#build-and-verify) from the repository root. The conda environment provides the same Python minor version and pinned Python dependencies used for validation.
 
 To check undefined behavior using GCC or Clang, activate the environment and configure a separate build:
 

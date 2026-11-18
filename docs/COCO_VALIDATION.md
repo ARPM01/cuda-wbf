@@ -20,7 +20,7 @@ The loader kept **5,749,126** input detections, discarded **508,895** reversed o
 
 ## Reproduction
 
-Use the Python 3.11 environment, optional evaluation dependencies, and CUDA package described in the [README](../README.md#milestone-3-real-data-verification-and-comparisons). In the validation workspace, the two assets were staged under `build/m3-data`.
+Follow the [CUDA build](../README.md#cuda-build) and install the [COCO benchmark prerequisites](../README.md#coco-benchmark-prerequisites). In the validation workspace, the two assets were staged under `build/m3-data`.
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0
